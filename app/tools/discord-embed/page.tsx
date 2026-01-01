@@ -1,253 +1,162 @@
 "use client";
 
 import { useState } from "react";
-import { FaCopy, FaDiscord, FaPlus, FaTrash } from "react-icons/fa";
+import { FaDiscord, FaCopy, FaImage, FaPalette } from "react-icons/fa";
 
-interface EmbedField {
-  name: string;
-  value: string;
-  inline: boolean;
-}
-
-export default function DiscordEmbedBuilder() {
-  // Estado del Embed
+export default function DiscordEmbedPage() {
+  // Estado básico del Embed
   const [embed, setEmbed] = useState({
     title: "Título del Anuncio",
     description: "Escribe aquí la descripción de tu mensaje...",
-    color: "#5865F2", // Azul Discord por defecto
-    author: "",
-    footer: "GTA:W Management System",
-    timestamp: true,
-    fields: [] as EmbedField[]
+    color: "#5865F2",
+    image: "",
+    footer: "GTA Dashboard • Sistema Automático"
   });
 
-  const [jsonOutput, setJsonOutput] = useState("");
-
-  // Añadir un campo nuevo
-  const addField = () => {
-    setEmbed({
-      ...embed,
-      fields: [...embed.fields, { name: "Nuevo Campo", value: "Contenido", inline: false }]
-    });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setEmbed({ ...embed, [e.target.name]: e.target.value });
   };
 
-  // Actualizar campo específico
-  const updateField = (index: number, key: keyof EmbedField, val: any) => {
-    const newFields = [...embed.fields];
-    // @ts-ignore
-    newFields[index][key] = val;
-    setEmbed({ ...embed, fields: newFields });
-  };
-
-  // Borrar campo
-  const removeField = (index: number) => {
-    const newFields = embed.fields.filter((_, i) => i !== index);
-    setEmbed({ ...embed, fields: newFields });
-  };
-
-  // Generar JSON
-  const generateJSON = () => {
-    const json = JSON.stringify({
-      embeds: [{
-        title: embed.title,
-        description: embed.description,
-        color: parseInt(embed.color.replace("#", ""), 16),
-        author: { name: embed.author },
-        footer: { text: embed.footer },
-        timestamp: embed.timestamp ? new Date().toISOString() : undefined,
-        fields: embed.fields
-      }]
-    }, null, 2);
-    setJsonOutput(json);
-    navigator.clipboard.writeText(json);
-    alert("¡JSON copiado al portapapeles!");
+  const copyToClipboard = () => {
+    const jsonCode = JSON.stringify({ embeds: [embed] }, null, 2);
+    navigator.clipboard.writeText(jsonCode);
+    alert("JSON copiado al portapapeles. ¡Pégalo en Discord!");
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
-      
-      {/* COLUMNA IZQUIERDA: EDITOR */}
-      <div className="w-1/2 p-8 overflow-y-auto border-r border-gray-300 bg-white">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2 text-indigo-600">
-          <FaDiscord /> Creador de Embeds
+    <div className="p-8 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
+          <FaDiscord className="text-[#5865F2]" /> Generador de Embeds
         </h1>
+        <p className="text-gray-500 dark:text-gray-400">Crea mensajes bonitos para tus canales de Discord.</p>
+      </div>
 
-        <div className="space-y-4">
-          {/* Configuración Básica */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-gray-500">Autor</label>
-            <input 
-              type="text" 
-              value={embed.author} 
-              onChange={(e) => setEmbed({...embed, author: e.target.value})}
-              className="w-full p-2 border rounded" 
-              placeholder="Ej: Departamento de Policía"
-            />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* --- FORMULARIO DE EDICIÓN --- */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 space-y-4">
+          <h2 className="font-bold text-lg text-gray-700 dark:text-gray-200 mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">Configuración</h2>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-gray-500">Título</label>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Título</label>
             <input 
-              type="text" 
+              name="title" 
               value={embed.title} 
-              onChange={(e) => setEmbed({...embed, title: e.target.value})}
-              className="w-full p-2 border rounded font-bold" 
+              onChange={handleChange}
+              className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-gray-500">Descripción</label>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Descripción</label>
             <textarea 
+              name="description" 
+              rows={4} 
               value={embed.description} 
-              onChange={(e) => setEmbed({...embed, description: e.target.value})}
-              className="w-full p-2 border rounded h-24" 
+              onChange={handleChange}
+              className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-gray-500">Color (Hex)</label>
-              <div className="flex gap-2">
-                <input 
-                  type="color" 
-                  value={embed.color} 
-                  onChange={(e) => setEmbed({...embed, color: e.target.value})}
-                  className="h-10 w-10 cursor-pointer border-none p-0 bg-transparent"
-                />
-                <input 
-                  type="text" 
-                  value={embed.color} 
-                  onChange={(e) => setEmbed({...embed, color: e.target.value})}
-                  className="w-full p-2 border rounded font-mono uppercase" 
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-gray-500">Footer</label>
-              <input 
-                type="text" 
-                value={embed.footer} 
-                onChange={(e) => setEmbed({...embed, footer: e.target.value})}
-                className="w-full p-2 border rounded" 
-              />
+          <div className="flex gap-4">
+            <div className="flex-1">
+               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 flex items-center gap-2">
+                 <FaPalette /> Color (Hex)
+               </label>
+               <div className="flex items-center gap-2">
+                 <input 
+                    type="color" 
+                    name="color" 
+                    value={embed.color} 
+                    onChange={handleChange}
+                    className="h-10 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+                 />
+                 <input 
+                    name="color" 
+                    value={embed.color} 
+                    onChange={handleChange} 
+                    className="flex-1 p-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm font-mono uppercase"
+                 />
+               </div>
             </div>
           </div>
 
-          {/* Campos Dinámicos */}
-          <div className="pt-4 border-t">
-            <div className="flex justify-between items-center mb-4">
-              <label className="text-xs font-bold uppercase text-gray-500">Campos (Fields)</label>
-              <button 
-                onClick={addField}
-                className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200 flex items-center gap-1"
-              >
-                <FaPlus /> Añadir Campo
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {embed.fields.map((field, i) => (
-                <div key={i} className="bg-gray-50 p-3 rounded border flex gap-2 items-start">
-                  <div className="flex-1 space-y-2">
-                    <input 
-                      type="text" 
-                      value={field.name}
-                      onChange={(e) => updateField(i, 'name', e.target.value)}
-                      className="w-full p-1 text-sm font-bold border rounded"
-                      placeholder="Nombre del campo"
-                    />
-                    <textarea 
-                      value={field.value}
-                      onChange={(e) => updateField(i, 'value', e.target.value)}
-                      className="w-full p-1 text-sm border rounded h-16"
-                      placeholder="Contenido..."
-                    />
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
-                      <input 
-                        type="checkbox" 
-                        checked={field.inline}
-                        onChange={(e) => updateField(i, 'inline', e.target.checked)}
-                      />
-                      En línea (Inline)
-                    </label>
-                  </div>
-                  <button onClick={() => removeField(i)} className="text-red-400 hover:text-red-600 p-1">
-                    <FaTrash />
-                  </button>
-                </div>
-              ))}
-            </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 flex items-center gap-2">
+              <FaImage /> URL de Imagen (Opcional)
+            </label>
+            <input 
+              name="image" 
+              placeholder="https://..." 
+              value={embed.image} 
+              onChange={handleChange}
+              className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Footer / Pie de página</label>
+            <input 
+              name="footer" 
+              value={embed.footer} 
+              onChange={handleChange}
+              className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
+            />
           </div>
 
           <button 
-            onClick={generateJSON}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow mt-6 flex justify-center items-center gap-2"
+            onClick={copyToClipboard}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 mt-4"
           >
-            <FaCopy /> Copiar JSON para Bot
+            <FaCopy /> Copiar JSON para Discord
           </button>
         </div>
-      </div>
 
-      {/* COLUMNA DERECHA: PREVIEW (DISCORD STYLE) */}
-      <div className="w-1/2 bg-[#36393f] p-8 flex items-center justify-center overflow-y-auto">
-        <div className="w-full max-w-lg">
-          <h3 className="text-[#b9bbbe] text-xs font-bold uppercase mb-4 tracking-wide">Vista Previa (Live Preview)</h3>
-          
-          {/* El Mensaje Embed */}
-          <div className="flex gap-3">
-             {/* Avatar dummy de un bot */}
-             <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xl">
-               <FaDiscord />
-             </div>
+        {/* --- PREVISUALIZACIÓN (ESTILO DISCORD) --- */}
+        <div>
+           <h2 className="font-bold text-lg text-gray-700 dark:text-gray-200 mb-4">Vista Previa</h2>
+           
+           {/* Contenedor Gris Oscuro tipo Discord */}
+           <div className="bg-[#36393f] p-4 rounded-lg shadow-inner border border-gray-300 dark:border-gray-900">
+              <div className="flex gap-3">
+                 {/* Avatar simulado Bot */}
+                 <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                    BOT
+                 </div>
 
-             <div className="flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-white font-bold hover:underline cursor-pointer">System Bot</span>
-                  <span className="text-[10px] bg-[#5865F2] text-white px-1 rounded">BOT</span>
-                  <span className="text-[#72767d] text-xs">Hoy a las {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
-                </div>
-
-                {/* El Cuerpo del Embed */}
-                <div 
-                  className="mt-2 bg-[#2f3136] rounded border-l-4 p-4 max-w-md shadow-sm"
-                  style={{ borderLeftColor: embed.color }}
-                >
-                  <div className="grid gap-2">
-                    {embed.author && (
-                      <div className="text-white text-sm font-bold">{embed.author}</div>
-                    )}
-                    
-                    <div className="text-white font-bold text-base hover:underline cursor-pointer">
-                      {embed.title}
-                    </div>
-                    
-                    <div className="text-[#dcddde] text-sm whitespace-pre-wrap">
-                      {embed.description}
+                 <div className="flex-1">
+                    <div className="flex items-baseline gap-2">
+                       <span className="text-white font-bold text-sm">System Bot</span>
+                       <span className="text-[#a5a7ac] text-xs px-1 bg-[#5865F2] rounded text-white">BOT</span>
+                       <span className="text-[#72767d] text-xs">Hoy a las 12:00</span>
                     </div>
 
-                    {/* Renderizado de Fields */}
-                    {embed.fields.length > 0 && (
-                      <div className="grid grid-cols-12 gap-2 mt-2">
-                        {embed.fields.map((field, i) => (
-                          <div key={i} className={`${field.inline ? 'col-span-4' : 'col-span-12'}`}>
-                            <div className="text-[#b9bbbe] font-bold text-xs mb-1">{field.name}</div>
-                            <div className="text-[#dcddde] text-sm whitespace-pre-wrap">{field.value}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {/* El Embed en sí */}
+                    <div 
+                      className="mt-2 bg-[#2f3136] rounded-l-md p-4 max-w-md border-l-4 grid gap-2"
+                      style={{ borderLeftColor: embed.color }}
+                    >
+                       <h3 className="text-white font-bold text-base">{embed.title}</h3>
+                       <p className="text-[#dcddde] text-sm whitespace-pre-wrap">{embed.description}</p>
+                       
+                       {embed.image && (
+                         <img src={embed.image} alt="Preview" className="w-full rounded-md mt-2 max-h-60 object-cover" />
+                       )}
 
-                    {/* Footer */}
-                    <div className="flex items-center gap-2 mt-2 pt-2 text-xs text-[#b9bbbe]">
-                      {embed.footer && <span>{embed.footer}</span>}
-                      {embed.timestamp && embed.footer && <span>•</span>}
-                      {embed.timestamp && <span>Hoy a las {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>}
+                       <div className="text-[#72767d] text-xs font-bold mt-1 flex items-center gap-1">
+                         {embed.footer}
+                       </div>
                     </div>
-                  </div>
-                </div>
-             </div>
-          </div>
+                 </div>
+              </div>
+           </div>
+
+           <p className="text-center text-gray-400 text-xs mt-4">
+             Nota: La vista previa es aproximada. El resultado final en Discord será perfecto.
+           </p>
         </div>
+
       </div>
     </div>
   );
