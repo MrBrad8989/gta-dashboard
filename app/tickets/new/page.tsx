@@ -1,6 +1,8 @@
+"use client";
+
 import { createTicket } from "@/app/actions/ticketActions";
 import Link from "next/link";
-import { FaArrowLeft, FaPaperPlane } from "react-icons/fa";
+import { FaArrowLeft, FaLifeRing, FaBug, FaQuestionCircle, FaUserLock } from "react-icons/fa";
 
 export default function NewTicketPage() {
   return (
@@ -10,94 +12,82 @@ export default function NewTicketPage() {
           href="/tickets" 
           className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-2 text-sm font-bold mb-4"
         >
-          <FaArrowLeft /> Volver al Soporte
+          <FaArrowLeft /> Volver a Soporte
         </Link>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Abrir Nuevo Ticket</h1>
-        <p className="text-gray-500 dark:text-gray-400">Describe tu problema detalladamente para que el Staff pueda ayudarte.</p>
+        <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-3">
+            <FaLifeRing /> Ticket de Soporte Técnico
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">
+            Utiliza este canal para dudas generales, problemas con tu cuenta o reporte de bugs técnicos.
+        </p>
       </div>
 
-      {/* FORMULARIO: Fondo blanco en día, Gris oscuro en noche */}
-      <form action={createTicket} className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 space-y-6">
+      <form action={createTicket} className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border-t-4 border-indigo-500 dark:border-indigo-600 space-y-6">
         
-        {/* Tipo de Ticket */}
+        {/* SELECTOR DE TIPO (LIMPIO: Solo Soporte) */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Tipo de Ayuda</label>
-          <select 
-            name="type" 
-            className="w-full p-3 
-                       bg-gray-50 dark:bg-gray-900 
-                       text-gray-900 dark:text-white 
-                       border border-gray-300 dark:border-gray-600 
-                       rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-            required
-          >
-            {/* Las opciones heredarán el color, pero por seguridad las forzamos a oscuro si el navegador da problemas */}
-            <option value="GENERAL_SUPPORT" className="dark:bg-gray-900">Soporte General / Duda</option>
-            <option value="BUG_REPORT" className="dark:bg-gray-900">Reportar Bug / Fallo</option>
-            <option value="USER_REPORT" className="dark:bg-gray-900">Reportar a un Usuario</option>
-            <option value="FACTION_REPORT" className="dark:bg-gray-900">Reportar Facción ilegal/legal</option>
-            <option value="ACCOUNT_HELP" className="dark:bg-gray-900">Problema con mi Cuenta</option>
-          </select>
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">¿En qué podemos ayudarte?</label>
+            <div className="grid grid-cols-3 gap-2">
+                <label className="cursor-pointer">
+                    <input type="radio" name="type" value="GENERAL_SUPPORT" className="peer sr-only" required defaultChecked />
+                    <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 peer-checked:bg-indigo-50 peer-checked:border-indigo-500 dark:peer-checked:bg-indigo-900/30 text-center hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <FaQuestionCircle className="mx-auto mb-1 text-indigo-500" />
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Duda General</span>
+                    </div>
+                </label>
+                <label className="cursor-pointer">
+                    <input type="radio" name="type" value="BUG_REPORT" className="peer sr-only" required />
+                    <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 peer-checked:bg-indigo-50 peer-checked:border-indigo-500 dark:peer-checked:bg-indigo-900/30 text-center hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <FaBug className="mx-auto mb-1 text-indigo-500" />
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Reportar Bug</span>
+                    </div>
+                </label>
+                <label className="cursor-pointer">
+                    <input type="radio" name="type" value="ACCOUNT_HELP" className="peer sr-only" required />
+                    <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 peer-checked:bg-indigo-50 peer-checked:border-indigo-500 dark:peer-checked:bg-indigo-900/30 text-center hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <FaUserLock className="mx-auto mb-1 text-indigo-500" />
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Problema Cuenta</span>
+                    </div>
+                </label>
+            </div>
         </div>
 
-        {/* Título */}
         <div>
           <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Asunto</label>
           <input 
             type="text" 
             name="title"
-            placeholder="Ej: He perdido mi vehículo por un bug..."
-            className="w-full p-3 
-                       bg-gray-50 dark:bg-gray-900 
-                       text-gray-900 dark:text-white 
-                       border border-gray-300 dark:border-gray-600 
-                       rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            placeholder="Resumen del problema"
+            className="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
             required
           />
         </div>
 
-        {/* Descripción */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Descripción Detallada</label>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Descripción</label>
           <textarea 
             name="description"
-            rows={6}
-            placeholder="Explica qué ha pasado, dónde y cuándo..."
-            className="w-full p-3 
-                       bg-gray-50 dark:bg-gray-900 
-                       text-gray-900 dark:text-white 
-                       border border-gray-300 dark:border-gray-600 
-                       rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+            rows={5}
+            className="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
             required
           ></textarea>
         </div>
 
-        {/* Pruebas Gráficas (NUEVO) */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
-            Pruebas Gráficas (Opcional)
-          </label>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Pruebas (Opcional)</label>
           <input 
             type="url" 
             name="proofUrl"
-            placeholder="Enlace a Imgur, YouTube, Streamable..."
-            className="w-full p-3 
-                       bg-gray-50 dark:bg-gray-900 
-                       text-gray-900 dark:text-white 
-                       border border-gray-300 dark:border-gray-600 
-                       rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            placeholder="URL de imagen si es necesaria"
+            className="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Sube tus imágenes a <a href="https://imgur.com" target="_blank" className="text-indigo-500 hover:underline">Imgur</a> o vídeos a YouTube/Streamable y pega el enlace aquí.
-          </p>
         </div>
 
-        {/* Botón */}
         <button 
           type="submit"
           className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex justify-center items-center gap-2"
         >
-          <FaPaperPlane /> Enviar Ticket
+          <FaLifeRing /> Crear Ticket
         </button>
 
       </form>
