@@ -38,8 +38,7 @@ export default function Sidebar() {
     { name: "Reportes", path: "/my-reports", icon: <FaGavel /> },
     
     // SECCIÓN DE EVENTOS
-    { name: "Galería Eventos", path: "/events", icon: <FaCalendarAlt /> },       // Lo que ve todo el mundo
-    { name: "Mis Eventos", path: "/events/panel", icon: <FaBroadcastTower /> },  // <--- TU NUEVO PANEL
+    { name: "Eventos", path: "/events", icon: <FaCalendarAlt /> },
   ];
 
   const getRoleBadge = () => {

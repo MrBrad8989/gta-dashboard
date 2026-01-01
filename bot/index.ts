@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel } from 'discord.js';
 import { PrismaClient } from '@prisma/client';
 
