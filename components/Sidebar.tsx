@@ -11,7 +11,11 @@ import {
   FaMapMarkedAlt, 
   FaDiscord,
   FaLifeRing,
-  FaGavel // <--- ¡IMPORTANTE! Añadimos el icono aquí
+  FaGavel,
+  FaCalendarAlt, // <--- IMPORTANTE: Icono de Eventos
+  FaCrown,       // Iconos de rangos
+  FaShieldAlt,
+  FaHeadset
 } from "react-icons/fa";
 
 export default function Sidebar() {
@@ -22,20 +26,31 @@ export default function Sidebar() {
 
   const role = session.user.role;
 
-  // Menú General
+  // --- DEFINICIÓN DE PERMISOS ---
+  // ¿Quién puede ver TODO? (Founder y Admin)
+  const isSuperAdmin = ['FOUNDER', 'ADMIN'].includes(role);
+  
+  // ¿Quién puede ver Tickets? (Founder, Admin, Trial y Support)
+  const canManageTickets = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'].includes(role);
+
+  // Menú General (Para todos los usuarios)
   const menuItems = [
     { name: "Inicio", path: "/", icon: <FaHome /> },
-    { name: "Soporte / Problemas", path: "/tickets", icon: <FaLifeRing /> }, // Ruta Azul
-    { name: "Reportes", path: "/my-reports", icon: <FaGavel /> },   // Ruta Roja
+    { name: "Soporte / Tickets", path: "/tickets", icon: <FaLifeRing /> },
+    { name: "Sala de Reportes", path: "/my-reports", icon: <FaGavel /> },
+    { name: "Eventos LS", path: "/events", icon: <FaCalendarAlt /> }, // <--- NUEVA SECCIÓN
   ];
 
-  // Menú Admin
-  const adminItems = [
-    { name: "Gestión Usuarios", path: "/admin/users", icon: <FaUsers /> },
-    { name: "Mapa Global", path: "/admin/map", icon: <FaMapMarkedAlt /> },
-    { name: "Reportes & Tickets", path: "/admin/reports", icon: <FaBug /> },
-    { name: "Generador Embeds", path: "/tools/discord-embed", icon: <FaDiscord /> },
-  ];
+  // --- ETIQUETAS DE ROL ---
+  const getRoleBadge = () => {
+    switch (role) {
+      case 'FOUNDER': return <span className="text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold bg-yellow-500 flex items-center gap-1"><FaCrown /> FOUNDER</span>;
+      case 'ADMIN': return <span className="text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold bg-red-600 flex items-center gap-1"><FaShieldAlt /> ADMIN</span>;
+      case 'TRIAL_ADMIN': return <span className="text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold bg-orange-500">TRIAL ADMIN</span>;
+      case 'SUPPORT': return <span className="text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold bg-green-600 flex items-center gap-1"><FaHeadset /> SUPPORT</span>;
+      default: return <span className="text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold bg-indigo-600">USUARIO</span>;
+    }
+  };
 
   return (
     <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col shadow-xl z-50 transition-colors duration-300">
@@ -49,11 +64,7 @@ export default function Sidebar() {
         />
         <div className="overflow-hidden">
           <h2 className="font-bold text-sm truncate text-gray-800 dark:text-white">{session.user.name}</h2>
-          <span className={`text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold ${
-            role === 'ADMIN' ? 'bg-red-600' : 'bg-indigo-600'
-          }`}>
-            {role}
-          </span>
+          <div className="mt-1">{getRoleBadge()}</div>
         </div>
       </div>
 
@@ -75,24 +86,35 @@ export default function Sidebar() {
           </Link>
         ))}
 
-        {role === "ADMIN" && (
+        {/* SECCIÓN STAFF (Solo si tienes algún rango) */}
+        {canManageTickets && (
           <>
             <div className="my-4 border-t border-gray-200 dark:border-gray-800"></div>
             <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider mb-2">Administración</p>
-            {adminItems.map((item) => (
-              <Link 
-                key={item.path} 
-                href={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  pathname === item.path 
-                    ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white shadow-sm" 
-                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
-                }`}
-              >
-                <span className="text-lg">{item.icon}</span>
-                <span className="text-sm font-medium">{item.name}</span>
-              </Link>
-            ))}
+            
+            {/* Solo SUPER ADMINS ven gestión completa */}
+            {isSuperAdmin && (
+                <>
+                    <Link href="/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/users' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
+                        <span className="text-lg"><FaUsers /></span>
+                        <span className="text-sm font-medium">Gestión Usuarios</span>
+                    </Link>
+                    <Link href="/admin/map" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/map' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
+                        <span className="text-lg"><FaMapMarkedAlt /></span>
+                        <span className="text-sm font-medium">Mapa Global</span>
+                    </Link>
+                     <Link href="/tools/discord-embed" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/tools/discord-embed' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
+                        <span className="text-lg"><FaDiscord /></span>
+                        <span className="text-sm font-medium">Generador Embeds</span>
+                    </Link>
+                </>
+            )}
+
+            {/* TODOS LOS STAFF ven Panel de Tickets */}
+            <Link href="/admin/reports" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/reports' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
+                <span className="text-lg"><FaBug /></span>
+                <span className="text-sm font-medium">Panel de Tickets</span>
+            </Link>
           </>
         )}
       </nav>

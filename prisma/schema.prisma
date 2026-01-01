@@ -32,6 +32,10 @@ model User {
   
   // 5. Reportes recibidos (Soy el acusado) - ESTA ES LA BUENA
   receivedReports      Ticket[]      @relation("ReportedUser")
+  
+  isBanned      Boolean   @default(false)
+
+  events               Event[]
 }
 
 // Nueva tabla para simular las casas/negocios del juego
@@ -103,4 +107,39 @@ model TicketMessage {
   author    User     @relation(fields: [authorId], references: [id])
   
   createdAt DateTime @default(now())
+}
+model Event {
+  id              Int      @id @default(autoincrement())
+  
+  // Datos Básicos
+  title           String
+  description     String   @db.Text // Descripción larga
+  eventDate       DateTime // Fecha y hora del evento
+  flyerUrl        String   // Ruta del archivo subido
+  
+  // Requisitos Técnicos
+  needsCars       Boolean  @default(false)
+  carsDesc        String?  @db.Text
+  
+  needsRadio      Boolean  @default(false)
+  
+  needsMapping    Boolean  @default(false)
+  mappingDesc     String?  @db.Text
+  mappingFiles    String?  @db.Text // Guardaremos las rutas de las fotos separadas por comas
+  
+  // Gestión
+  status          EventStatus @default(PENDING)
+  rejectionReason String?     @db.Text
+  
+  // Relaciones
+  creatorId       Int
+  creator         User     @relation(fields: [creatorId], references: [id])
+  
+  createdAt       DateTime @default(now())
+}
+
+enum EventStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

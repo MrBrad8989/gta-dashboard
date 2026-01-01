@@ -2,26 +2,51 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
-import { FaUserShield, FaClipboardList, FaCheckCircle, FaGavel, FaLifeRing, FaFilter } from "react-icons/fa";
+import { FaClipboardList, FaCheckCircle, FaGavel, FaLifeRing, FaHandPaper, FaUserShield, FaArrowRight } from "react-icons/fa";
+import { claimTicket, assignTicketManually } from "@/app/actions/ticketActions";
 
 export default async function AdminReportsPage() {
   // @ts-ignore
   const session = await getServerSession(authOptions);
-
-  if (!session || session.user.role !== "ADMIN") {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4">
-        <FaUserShield className="text-5xl text-red-500 mb-4" />
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Acceso Restringido</h1>
-      </div>
-    );
+  
+  const allowedRoles = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'];
+  if (!session || !allowedRoles.includes(session.user.role)) {
+    return <div className="p-10 text-center text-red-500 font-bold">Acceso Denegado</div>;
   }
 
-  // Traemos TODO: Tickets y Reportes, ordenados por fecha
+  const currentUserId = parseInt(session.user.id);
+  const userRole = session.user.role;
+  const isSuperAdmin = ['FOUNDER', 'ADMIN'].includes(userRole);
+
+  // 1. FILTRO: ¿Qué tickets veo?
+  const whereCondition: any = {};
+  if (!isSuperAdmin) {
+      // Staff normal solo ve lo libre o lo suyo
+      whereCondition.OR = [
+          { assignedToId: null },
+          { assignedToId: currentUserId }
+      ];
+  }
+
+  // 2. CARGAMOS TICKETS
   const tickets = await prisma.ticket.findMany({
-    orderBy: { updatedAt: 'desc' }, // Los más recientes primero (que tengan actividad)
-    include: { creator: true, reportedUser: true }
+    where: whereCondition,
+    orderBy: { updatedAt: 'desc' },
+    include: { 
+        creator: true, 
+        reportedUser: true,
+        assignedTo: true 
+    }
   });
+
+  // 3. CARGAMOS LISTA DE STAFF (Solo si soy Admin, para el desplegable)
+  let staffMembers = [];
+  if (isSuperAdmin) {
+      staffMembers = await prisma.user.findMany({
+          where: { role: { in: ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'] } },
+          select: { id: true, name: true, role: true } // Solo datos necesarios
+      });
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -29,19 +54,13 @@ export default async function AdminReportsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
             <FaClipboardList className="text-indigo-600" />
-            Administración de Tickets
+            Panel de Tickets & Reportes
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Gestión centralizada de soporte técnico y reportes de normativa.
+            {isSuperAdmin 
+                ? "Modo Supervisor: Gestión total y asignación manual." 
+                : "Modo Staff: Atiende tickets libres (Máx. 5 simultáneos)."}
           </p>
-        </div>
-        
-        {/* Contadores rápidos */}
-        <div className="flex gap-3">
-            <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col items-center">
-                <span className="text-xs font-bold text-gray-400 uppercase">Pendientes</span>
-                <span className="text-xl font-bold text-indigo-600">{tickets.filter(t => t.status === 'OPEN').length}</span>
-            </div>
         </div>
       </div>
 
@@ -49,8 +68,8 @@ export default async function AdminReportsPage() {
         {tickets.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center justify-center">
              <FaCheckCircle className="text-6xl text-green-200 dark:text-green-900 mb-4" />
-             <h3 className="text-xl font-bold text-gray-800 dark:text-white">Todo Limpio</h3>
-             <p className="text-gray-500">No hay tickets ni reportes pendientes.</p>
+             <h3 className="text-xl font-bold text-gray-800 dark:text-white">Bandeja Limpia</h3>
+             <p className="text-gray-500">No hay tareas pendientes en tu vista.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -58,18 +77,21 @@ export default async function AdminReportsPage() {
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
                   <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Tipo</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Asunto / Resumen</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Involucrados</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-right">Estado</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Asunto</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Responsable</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {tickets.map((ticket) => {
                   const isReport = ticket.type === 'USER_REPORT' || ticket.type === 'FACTION_REPORT';
+                  const isMine = ticket.assignedToId === currentUserId;
+                  const isUnassigned = ticket.assignedToId === null;
                   
                   return (
-                    <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition group">
-                      <td className="p-4 align-top w-40">
+                    <tr key={ticket.id} className={`transition group ${isMine ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
+                      {/* TIPO */}
+                      <td className="p-4 align-top w-32">
                         <Link href={`/tickets/${ticket.id}`} className="block">
                             <span className="font-mono text-[10px] text-gray-400 mb-1 block">#{ticket.id}</span>
                             {isReport ? (
@@ -83,40 +105,82 @@ export default async function AdminReportsPage() {
                             )}
                         </Link>
                       </td>
+
+                      {/* ASUNTO */}
                       <td className="p-4 align-top">
                         <Link href={`/tickets/${ticket.id}`} className="block group-hover:text-indigo-500 transition">
                             <div className="font-bold text-gray-800 dark:text-white text-sm mb-1">
                                {ticket.title}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 font-mono opacity-80">
-                               {/* Mostramos un fragmento para identificarlo rápido */}
-                               {ticket.description.slice(0, 60)}...
+                            <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 opacity-80">
+                               {ticket.description.substring(0, 60)}...
                             </div>
                         </Link>
                       </td>
+
+                      {/* RESPONSABLE */}
                       <td className="p-4 align-top">
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-                                <span className="text-gray-400">Autor:</span> 
-                                <img src={ticket.creator.avatar || "/default-avatar.png"} className="w-4 h-4 rounded-full" />
-                                <b>{ticket.creator.name}</b>
+                        {ticket.assignedTo ? (
+                            <div className="flex items-center gap-2">
+                                <img src={ticket.assignedTo.avatar || "/default-avatar.png"} className="w-6 h-6 rounded-full border border-gray-300" />
+                                <span className={`text-xs font-bold ${isMine ? 'text-indigo-600' : 'text-gray-700 dark:text-gray-300'}`}>
+                                    {isMine ? 'Tú (Reclamado)' : ticket.assignedTo.name}
+                                </span>
                             </div>
-                            {ticket.reportedUser && (
-                                <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 px-1.5 py-0.5 rounded w-fit">
-                                    <span className="font-bold">Acusado:</span> 
-                                    {ticket.reportedUser.name}
-                                </div>
+                        ) : (
+                            <span className="text-xs text-gray-400 italic flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                Libre
+                            </span>
+                        )}
+                      </td>
+
+                      {/* ACCIONES (RECLAMAR / ASIGNAR) */}
+                      <td className="p-4 align-top text-right">
+                        <div className="flex flex-col gap-2 items-end">
+                            
+                            {/* BOTÓN RECLAMAR (Para todos si está libre) */}
+                            {isUnassigned && ticket.status !== 'CLOSED' && (
+                                <form action={async () => {
+                                    "use server";
+                                    await claimTicket(ticket.id);
+                                }}>
+                                    <button className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1 transition">
+                                        <FaHandPaper /> Reclamar
+                                    </button>
+                                </form>
+                            )}
+
+                            {/* HERRAMIENTA ADMIN: ASIGNAR MANUALMENTE */}
+                            {isSuperAdmin && ticket.status !== 'CLOSED' && (
+                                <form action={assignTicketManually} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded border border-gray-200 dark:border-gray-600">
+                                    <input type="hidden" name="ticketId" value={ticket.id} />
+                                    <select 
+                                        name="targetUserId" 
+                                        className="text-[10px] bg-transparent text-gray-800 dark:text-white border-none focus:ring-0 cursor-pointer w-24"
+                                        defaultValue=""
+                                        required
+                                    >
+                                        <option value="" disabled>Asignar a...</option>
+                                        {staffMembers.map(staff => (
+                                            <option key={staff.id} value={staff.id} className="text-black">
+                                                {staff.name} ({staff.role})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button type="submit" className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 p-1">
+                                        <FaArrowRight size={12} />
+                                    </button>
+                                </form>
+                            )}
+
+                            {/* Enlace al chat si ya está asignado */}
+                            {!isUnassigned && (
+                                <Link href={`/tickets/${ticket.id}`} className="text-indigo-600 hover:underline text-xs font-bold">
+                                    Ver Chat &rarr;
+                                </Link>
                             )}
                         </div>
-                      </td>
-                      <td className="p-4 align-top text-right">
-                        <span className={`text-[10px] px-2 py-1 rounded font-bold border ${
-                          ticket.status === 'OPEN' ? 'bg-green-100 text-green-700 border-green-200' :
-                          ticket.status === 'CLOSED' ? 'bg-gray-100 text-gray-500 border-gray-200' :
-                          'bg-yellow-100 text-yellow-700 border-yellow-200'
-                        }`}>
-                          {ticket.status}
-                        </span>
                       </td>
                     </tr>
                   );

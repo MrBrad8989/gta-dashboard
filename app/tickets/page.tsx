@@ -11,7 +11,7 @@ export default async function TicketsPage() {
 
   const currentUserId = parseInt(session.user.id);
 
-  // FILTRO: Solo soporte técnico (EXCLUYENDO reportes)
+  // FILTRO: Solo soporte técnico (EXCLUYENDO reportes de usuarios)
   const tickets = await prisma.ticket.findMany({
     where: {
       AND: [
@@ -56,7 +56,7 @@ export default async function TicketsPage() {
           <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
             <FaTicketAlt className="mx-auto text-4xl text-gray-300 dark:text-gray-600 mb-4" />
             <h3 className="text-xl font-bold text-gray-600 dark:text-gray-300">No tienes tickets de soporte</h3>
-            <p className="text-gray-400 mt-2">Los reportes están en la sección "Sala de Reportes".</p>
+            <p className="text-gray-400 mt-2">Los reportes a jugadores están en la sección "Sala de Reportes".</p>
           </div>
         ) : (
           tickets.map((ticket) => (

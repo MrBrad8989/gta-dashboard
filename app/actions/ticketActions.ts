@@ -19,23 +19,18 @@ export async function createTicket(formData: FormData) {
   const description = formData.get("description") as string;
   const type = formData.get("type") as any;
   const proofUrl = formData.get("proofUrl") as string;
-  
-  // NUEVO: Capturamos el nombre del reportado
   const reportedUserName = formData.get("reportedUserName") as string;
 
   if (!title || !description || !type) {
     throw new Error("Faltan datos obligatorios");
   }
 
-  // Lógica para buscar el ID del usuario reportado (si existe)
   let reportedUserId = null;
   if (reportedUserName) {
     const userFound = await prisma.user.findFirst({
-        where: { name: reportedUserName } // Busca por nombre exacto
+        where: { name: reportedUserName }
     });
-    if (userFound) {
-        reportedUserId = userFound.id;
-    }
+    if (userFound) reportedUserId = userFound.id;
   }
 
   await prisma.ticket.create({
@@ -46,16 +41,14 @@ export async function createTicket(formData: FormData) {
       proofUrl: proofUrl || null,
       creatorId: parseInt(session.user.id),
       status: "OPEN",
-      reportedUserId: reportedUserId // <--- Guardamos al acusado
+      reportedUserId: reportedUserId
     }
   });
 
-  // Revalidamos ambas listas por si acaso
   revalidatePath("/tickets");
   revalidatePath("/my-reports");
   revalidatePath("/admin/reports"); 
 
-  // Redirigimos según el tipo
   if (type === 'USER_REPORT' || type === 'FACTION_REPORT') {
       redirect("/my-reports");
   } else {
@@ -88,12 +81,13 @@ export async function sendMessage(ticketId: number, formData: FormData) {
   revalidatePath(`/tickets/${ticketId}`);
 }
 
-// 3. CAMBIAR ESTADO (SOLO ADMIN)
+// 3. CAMBIAR ESTADO (STAFF)
 export async function updateTicketStatus(ticketId: number, newStatus: string) {
     // @ts-ignore
     const session = await getServerSession(authOptions);
+    const allowedRoles = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'];
     
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || !allowedRoles.includes(session.user.role)) {
         throw new Error("Acceso denegado.");
     }
 
@@ -111,7 +105,7 @@ export async function addUserToTicket(ticketId: number, formData: FormData) {
   // @ts-ignore
   const session = await getServerSession(authOptions);
   
-  if (!session || session.user.role !== 'ADMIN') {
+  if (!session || !['FOUNDER', 'ADMIN'].includes(session.user.role)) {
       throw new Error("Solo los administradores pueden añadir usuarios.");
   }
 
@@ -142,4 +136,92 @@ export async function addUserToTicket(ticketId: number, formData: FormData) {
   });
 
   revalidatePath(`/tickets/${ticketId}`);
+}
+
+// 5. RECLAMAR TICKET (AUTO-ASIGNACIÓN CON LÍMITE)
+export async function claimTicket(ticketId: number) {
+  // @ts-ignore
+  const session = await getServerSession(authOptions);
+  
+  const allowedRoles = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'];
+  if (!session || !allowedRoles.includes(session.user.role)) {
+      throw new Error("No tienes permisos para reclamar tickets.");
+  }
+
+  const currentUserId = parseInt(session.user.id);
+  const currentUserRole = session.user.role;
+
+  // --- LÓGICA ANTI-FARMEO (Límite 5) ---
+  if (['SUPPORT', 'TRIAL_ADMIN'].includes(currentUserRole)) {
+      const activeTicketsCount = await prisma.ticket.count({
+          where: {
+              assignedToId: currentUserId,
+              status: { in: ['OPEN', 'IN_PROGRESS'] } // Solo cuentan los activos
+          }
+      });
+
+      if (activeTicketsCount >= 5) {
+          throw new Error("⛔ Límite alcanzado (5 tickets). Cierra alguno antes de reclamar.");
+      }
+  }
+
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (ticket?.assignedToId && ticket.assignedToId !== currentUserId) {
+      throw new Error("Este ticket ya tiene dueño.");
+  }
+
+  await prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      assignedToId: currentUserId,
+      status: 'IN_PROGRESS'
+    }
+  });
+
+  await prisma.ticketMessage.create({
+    data: {
+      content: `🔒 SISTEMA: El staff ${session.user.name} ha reclamado este ticket.`,
+      ticketId: ticketId,
+      authorId: currentUserId,
+    }
+  });
+
+  revalidatePath("/admin/reports");
+  revalidatePath(`/tickets/${ticketId}`);
+}
+
+// 6. ASIGNACIÓN MANUAL (SOLO ADMINS - SIN LÍMITE)
+export async function assignTicketManually(formData: FormData) {
+  // @ts-ignore
+  const session = await getServerSession(authOptions);
+
+  if (!session || !['FOUNDER', 'ADMIN'].includes(session.user.role)) {
+      throw new Error("Solo Admins/Founders pueden forzar asignaciones.");
+  }
+
+  const ticketId = parseInt(formData.get("ticketId") as string);
+  const targetUserId = parseInt(formData.get("targetUserId") as string);
+  const assignerName = session.user.name;
+
+  const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!targetUser) throw new Error("Staff no encontrado.");
+
+  // Forzamos la asignación (Override)
+  await prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      assignedToId: targetUserId,
+      status: 'IN_PROGRESS'
+    }
+  });
+
+  await prisma.ticketMessage.create({
+    data: {
+      content: `🔒 SISTEMA: El administrador ${assignerName} asignó este ticket a ${targetUser.name}.`,
+      ticketId: ticketId,
+      authorId: parseInt(session.user.id),
+    }
+  });
+
+  revalidatePath("/admin/reports");
 }
