@@ -12,8 +12,9 @@ import {
   FaDiscord,
   FaLifeRing,
   FaGavel,
-  FaCalendarAlt, // <--- IMPORTANTE: Icono de Eventos
-  FaCrown,       // Iconos de rangos
+  FaCalendarAlt, 
+  FaBroadcastTower, // <--- NUEVO ICONO PARA EL PANEL
+  FaCrown,       
   FaShieldAlt,
   FaHeadset
 } from "react-icons/fa";
@@ -27,21 +28,20 @@ export default function Sidebar() {
   const role = session.user.role;
 
   // --- DEFINICIÓN DE PERMISOS ---
-  // ¿Quién puede ver TODO? (Founder y Admin)
   const isSuperAdmin = ['FOUNDER', 'ADMIN'].includes(role);
-  
-  // ¿Quién puede ver Tickets? (Founder, Admin, Trial y Support)
   const canManageTickets = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'].includes(role);
 
-  // Menú General (Para todos los usuarios)
+  // Menú General
   const menuItems = [
     { name: "Inicio", path: "/", icon: <FaHome /> },
     { name: "Soporte / Tickets", path: "/tickets", icon: <FaLifeRing /> },
-    { name: "Sala de Reportes", path: "/my-reports", icon: <FaGavel /> },
-    { name: "Eventos LS", path: "/events", icon: <FaCalendarAlt /> }, // <--- NUEVA SECCIÓN
+    { name: "Reportes", path: "/my-reports", icon: <FaGavel /> },
+    
+    // SECCIÓN DE EVENTOS
+    { name: "Galería Eventos", path: "/events", icon: <FaCalendarAlt /> },       // Lo que ve todo el mundo
+    { name: "Mis Eventos", path: "/events/panel", icon: <FaBroadcastTower /> },  // <--- TU NUEVO PANEL
   ];
 
-  // --- ETIQUETAS DE ROL ---
   const getRoleBadge = () => {
     switch (role) {
       case 'FOUNDER': return <span className="text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold bg-yellow-500 flex items-center gap-1"><FaCrown /> FOUNDER</span>;
@@ -86,13 +86,12 @@ export default function Sidebar() {
           </Link>
         ))}
 
-        {/* SECCIÓN STAFF (Solo si tienes algún rango) */}
+        {/* SECCIÓN STAFF */}
         {canManageTickets && (
           <>
             <div className="my-4 border-t border-gray-200 dark:border-gray-800"></div>
             <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider mb-2">Administración</p>
             
-            {/* Solo SUPER ADMINS ven gestión completa */}
             {isSuperAdmin && (
                 <>
                     <Link href="/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/users' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
@@ -110,7 +109,6 @@ export default function Sidebar() {
                 </>
             )}
 
-            {/* TODOS LOS STAFF ven Panel de Tickets */}
             <Link href="/admin/reports" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/reports' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
                 <span className="text-lg"><FaBug /></span>
                 <span className="text-sm font-medium">Panel de Tickets</span>
@@ -119,7 +117,6 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Botón Salir */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800">
         <button
           onClick={() => signOut()}
