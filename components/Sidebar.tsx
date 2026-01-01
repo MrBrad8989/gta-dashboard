@@ -10,7 +10,8 @@ import {
   FaSignOutAlt, 
   FaMapMarkedAlt, 
   FaDiscord,
-  FaLifeRing
+  FaLifeRing,
+  FaGavel // <--- ¡IMPORTANTE! Añadimos el icono aquí
 } from "react-icons/fa";
 
 export default function Sidebar() {
@@ -21,22 +22,22 @@ export default function Sidebar() {
 
   const role = session.user.role;
 
+  // Menú General
   const menuItems = [
     { name: "Inicio", path: "/", icon: <FaHome /> },
-    { name: "Soporte / Tickets", path: "/tickets", icon: <FaLifeRing /> },
-    // Si ya creaste la página de mis reportes, descomenta esto:
-    // { name: "Mis Reportes", path: "/my-reports", icon: <FaGavel /> },
+    { name: "Soporte / Tickets", path: "/tickets", icon: <FaLifeRing /> }, // Ruta Azul
+    { name: "Reportes / Problemas", path: "/my-reports", icon: <FaGavel /> },   // Ruta Roja
   ];
 
+  // Menú Admin
   const adminItems = [
     { name: "Gestión Usuarios", path: "/admin/users", icon: <FaUsers /> },
     { name: "Mapa Global", path: "/admin/map", icon: <FaMapMarkedAlt /> },
-    { name: "Reportes & Bugs", path: "/admin/reports", icon: <FaBug /> },
+    { name: "Reportes & Tickets", path: "/admin/reports", icon: <FaBug /> },
     { name: "Generador Embeds", path: "/tools/discord-embed", icon: <FaDiscord /> },
   ];
 
   return (
-    // CAMBIO 1: Fondo dinámico (Blanco en día, Gris oscuro en noche) y borde derecho
     <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col shadow-xl z-50 transition-colors duration-300">
       
       {/* Encabezado */}
@@ -47,7 +48,6 @@ export default function Sidebar() {
           className="w-10 h-10 rounded-full border-2 border-indigo-500"
         />
         <div className="overflow-hidden">
-          {/* Texto dinámico */}
           <h2 className="font-bold text-sm truncate text-gray-800 dark:text-white">{session.user.name}</h2>
           <span className={`text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold ${
             role === 'ADMIN' ? 'bg-red-600' : 'bg-indigo-600'
@@ -66,9 +66,7 @@ export default function Sidebar() {
             href={item.path}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               pathname === item.path 
-                // Activo: Indigo claro en día, Indigo oscuro en noche
                 ? "bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-white shadow-sm" 
-                // Inactivo: Gris oscuro en día, Gris claro en noche
                 : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
             }`}
           >

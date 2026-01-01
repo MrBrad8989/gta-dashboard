@@ -15,18 +15,18 @@ export default function NewTicketPage() {
           <FaArrowLeft /> Volver a Soporte
         </Link>
         <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-3">
-            <FaLifeRing /> Abrir Ticket de Soporte
+            <FaLifeRing /> Ticket de Soporte Técnico
         </h1>
-        <p className="text-gray-500 dark:text-gray-400">
-            Ayuda técnica, dudas sobre normativa o problemas con tu cuenta.
+        <p className="text-gray-500 dark:text-gray-400 mt-2">
+            Utiliza este canal para dudas generales, problemas con tu cuenta o reporte de bugs técnicos.
         </p>
       </div>
 
       <form action={createTicket} className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border-t-4 border-indigo-500 dark:border-indigo-600 space-y-6">
         
-        {/* SELECTOR DE TIPO (Solo soporte) */}
+        {/* SELECTOR DE TIPO SIMPLIFICADO */}
         <div>
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Tipo de Consulta</label>
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">¿En qué podemos ayudarte?</label>
             <div className="grid grid-cols-3 gap-2">
                 <label className="cursor-pointer">
                     <input type="radio" name="type" value="GENERAL_SUPPORT" className="peer sr-only" required defaultChecked />
@@ -57,7 +57,7 @@ export default function NewTicketPage() {
           <input 
             type="text" 
             name="title"
-            placeholder="Resumen breve del problema"
+            placeholder="Resumen del problema"
             className="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
             required
           />
@@ -68,14 +68,13 @@ export default function NewTicketPage() {
           <textarea 
             name="description"
             rows={5}
-            placeholder="Explica tu duda o problema..."
             className="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
             required
           ></textarea>
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Adjunto (Opcional)</label>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Pruebas (Opcional)</label>
           <input 
             type="url" 
             name="proofUrl"
