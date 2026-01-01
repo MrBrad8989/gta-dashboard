@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,42 +8,52 @@ datasource db {
 }
 
 model User {
-  id                Int             @id @default(autoincrement())
-  discordId         String          @unique
-  name              String?
-  avatar            String?
-  role              String          @default("USER")
-  createdAt         DateTime        @default(now())
-  lastLogin         DateTime        @updatedAt
+  id            Int       @id @default(autoincrement())
+  discordId     String    @unique
+  name          String?
+  avatar        String?
+  role          String    @default("USER")
+  createdAt     DateTime  @default(now())
+  lastLogin     DateTime  @updatedAt
 
-  // Relaciones del sistema de Tickets
-  createdTickets    Ticket[]        @relation("CreatedTickets")
-  reportedInTickets Ticket[]        @relation("ReportedInTickets")
-  assignedTickets   Ticket[]        @relation("AssignedTickets")
-  ticketMessages    TicketMessage[]
+  // --- RELACIONES CORREGIDAS ---
+  
+  // 1. Tickets creados por mí
+  createdTickets       Ticket[]      @relation("CreatedTickets")
+  
+  // 2. Tickets asignados a mí (si soy staff)
+  assignedTickets      Ticket[]      @relation("AssignedTickets")
+  
+  // 3. Mensajes que he escrito
+  ticketMessages       TicketMessage[]
+
+  // 4. Tickets donde participo (chat)
+  participatingTickets Ticket[]      @relation("TicketParticipants")
+  
+  // 5. Reportes recibidos (Soy el acusado) - ESTA ES LA BUENA
+  receivedReports      Ticket[]      @relation("ReportedUser")
 }
 
 // Nueva tabla para simular las casas/negocios del juego
 model Property {
   id         Int     @id @default(autoincrement())
   address    String
-  ownerName  String? // En el futuro esto se ligará al ID del personaje
+  ownerName  String? 
   price      Int
-  type       String  // Casa, Negocio, Garaje
+  type       String  
   posX       Float
   posY       Float
   posZ       Float
   isOccupied Boolean @default(false)
-  status     String  @default("APPROVED") // PENDING, APPROVED, REJECTED
+  status     String  @default("APPROVED") 
 }
 
-// TIPOS DE REPORTE
 enum TicketType {
-  USER_REPORT     // Reporte a usuario
-  FACTION_REPORT  // Reporte a facción
-  BUG_REPORT      // Bug del servidor
-  ACCOUNT_HELP    // Problema de cuenta
-  GENERAL_SUPPORT // Duda general
+  USER_REPORT    
+  FACTION_REPORT 
+  BUG_REPORT     
+  ACCOUNT_HELP   
+  GENERAL_SUPPORT 
 }
 
 enum TicketStatus {
@@ -56,7 +63,6 @@ enum TicketStatus {
   REJECTED
 }
 
-// MODELO DE TICKET (Sirve para todo: Reportes, Bugs, Soporte)
 model Ticket {
   id          Int          @id @default(autoincrement())
   type        TicketType
@@ -66,23 +72,24 @@ model Ticket {
 
   proofUrl    String?
   
-  // Quién lo creó (Corregido a Int)
+  // Creador
   creatorId   Int
   creator     User         @relation("CreatedTickets", fields: [creatorId], references: [id])
 
-  // A quién reporta (Corregido a Int)
+  // Acusado / Reportado
   reportedUserId Int?
-  reportedUser   User?     @relation("ReportedInTickets", fields: [reportedUserId], references: [id])
+  reportedUser   User?     @relation("ReportedUser", fields: [reportedUserId], references: [id])
 
-  // Quién lo atiende (Corregido a Int)
+  // Staff Asignado
   assignedToId Int?
   assignedTo   User?       @relation("AssignedTickets", fields: [assignedToId], references: [id])
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   
-  // Mensajes dentro del ticket (chat de soporte)
   messages    TicketMessage[]
+
+  participants User[]      @relation("TicketParticipants")
 }
 
 model TicketMessage {
@@ -92,7 +99,6 @@ model TicketMessage {
   ticketId  Int
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   
-  // Autor del mensaje (Corregido a Int)
   authorId  Int
   author    User     @relation(fields: [authorId], references: [id])
   

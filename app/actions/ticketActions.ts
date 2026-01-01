@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
 
+// 1. CREAR TICKET (Cualquier usuario logueado)
 export async function createTicket(formData: FormData) {
   // @ts-ignore
   const session = await getServerSession(authOptions);
@@ -17,7 +18,7 @@ export async function createTicket(formData: FormData) {
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const type = formData.get("type") as any;
-  const proofUrl = formData.get("proofUrl") as string; // <--- RECOGEMOS EL LINK
+  const proofUrl = formData.get("proofUrl") as string;
 
   if (!title || !description || !type) {
     throw new Error("Faltan datos");
@@ -28,7 +29,7 @@ export async function createTicket(formData: FormData) {
       title,
       description,
       type,
-      proofUrl: proofUrl || null, // <--- LO GUARDAMOS
+      proofUrl: proofUrl || null,
       creatorId: parseInt(session.user.id),
       status: "OPEN"
     }
@@ -38,9 +39,8 @@ export async function createTicket(formData: FormData) {
   revalidatePath("/admin/reports"); 
   redirect("/tickets");
 }
-// ... (Tus imports y la función createTicket que ya tenías) ...
 
-// ACCIÓN: ENVIAR MENSAJE AL CHAT
+// 2. ENVIAR MENSAJE (Cualquier usuario logueado en el ticket)
 export async function sendMessage(ticketId: number, formData: FormData) {
   // @ts-ignore
   const session = await getServerSession(authOptions);
@@ -49,7 +49,6 @@ export async function sendMessage(ticketId: number, formData: FormData) {
   const content = formData.get("content") as string;
   if (!content.trim()) return;
 
-  // Creamos el mensaje
   await prisma.ticketMessage.create({
     data: {
       content,
@@ -58,7 +57,6 @@ export async function sendMessage(ticketId: number, formData: FormData) {
     }
   });
 
-  // Actualizamos la fecha del ticket para que suba arriba en la lista
   await prisma.ticket.update({
     where: { id: ticketId },
     data: { updatedAt: new Date() }
@@ -67,11 +65,15 @@ export async function sendMessage(ticketId: number, formData: FormData) {
   revalidatePath(`/tickets/${ticketId}`);
 }
 
-// ACCIÓN: CAMBIAR ESTADO (Cerrar/Reabrir) - SOLO ADMIN O PROPIETARIO
+// 3. CAMBIAR ESTADO (SOLO ADMIN) - Seguridad aplicada aquí
 export async function updateTicketStatus(ticketId: number, newStatus: string) {
     // @ts-ignore
     const session = await getServerSession(authOptions);
-    // Aquí podrías añadir validación extra de seguridad si quieres
+    
+    // Si no es admin, cortamos la ejecución
+    if (!session || session.user.role !== 'ADMIN') {
+        throw new Error("Acceso denegado: Solo administradores pueden gestionar tickets.");
+    }
 
     await prisma.ticket.update({
         where: { id: ticketId },
@@ -80,4 +82,48 @@ export async function updateTicketStatus(ticketId: number, newStatus: string) {
 
     revalidatePath(`/tickets/${ticketId}`);
     revalidatePath("/admin/reports");
+}
+// NUEVA FUNCIÓN: AÑADIR USUARIO AL TICKET (SOLO ADMIN)
+export async function addUserToTicket(ticketId: number, formData: FormData) {
+  // @ts-ignore
+  const session = await getServerSession(authOptions);
+  
+  if (!session || session.user.role !== 'ADMIN') {
+      throw new Error("Solo los administradores pueden añadir usuarios.");
+  }
+
+  const username = formData.get("username") as string;
+  if (!username) return;
+
+  // 1. Buscar al usuario por nombre exacto
+  const userToAdd = await prisma.user.findFirst({
+    where: { name: username }
+  });
+
+  if (!userToAdd) {
+    // Si no lo encuentra, podríamos lanzar error, pero por ahora no hacemos nada 
+    // (en un sistema real mostraríamos una alerta)
+    return;
+  }
+
+  // 2. Añadirlo a la lista de participantes
+  await prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      participants: {
+        connect: { id: userToAdd.id }
+      }
+    }
+  });
+
+  // 3. Dejar un mensaje automático de sistema avisando
+  await prisma.ticketMessage.create({
+    data: {
+      content: `🔒 SISTEMA: El administrador ha añadido a ${userToAdd.name} al ticket.`,
+      ticketId: ticketId,
+      authorId: parseInt(session.user.id), // Lo firma el admin
+    }
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
 }
