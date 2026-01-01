@@ -3,31 +3,40 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FaHome, FaBuilding, FaUsers, FaBug, FaSignOutAlt, FaMapMarkedAlt } from "react-icons/fa";
+import { 
+  FaHome, 
+  FaUsers, 
+  FaBug, 
+  FaSignOutAlt, 
+  FaMapMarkedAlt, 
+  FaDiscord,      // Icono para el generador
+  FaLifeRing      // Icono para soporte
+} from "react-icons/fa";
 
 export default function Sidebar() {
   const { data: session } = useSession();
-  const pathname = usePathname(); // Para saber en qué página estamos y resaltarla
+  const pathname = usePathname();
 
-  // Si no hay sesión, no mostramos nada (o un esqueleto)
   if (!session) return null;
 
-  const role = session.user.role; // "ADMIN" o "USER"
+  const role = session.user.role;
 
+  // Menú para TODOS los usuarios (General)
   const menuItems = [
     { name: "Inicio", path: "/", icon: <FaHome /> },
-    { name: "Mis Propiedades", path: "/properties", icon: <FaBuilding /> },
+    { name: "Soporte / Tickets", path: "/tickets", icon: <FaLifeRing /> }, // Nuevo sistema
   ];
 
   // Opciones SOLO para Staff/Admins
   const adminItems = [
     { name: "Gestión Usuarios", path: "/admin/users", icon: <FaUsers /> },
-    { name: "Mapa Global (PM)", path: "/admin/map", icon: <FaMapMarkedAlt /> },
+    { name: "Mapa Global", path: "/admin/map", icon: <FaMapMarkedAlt /> },
     { name: "Reportes & Bugs", path: "/admin/reports", icon: <FaBug /> },
+    { name: "Generador Embeds", path: "/tools/discord-embed", icon: <FaDiscord /> }, // Tu nueva herramienta
   ];
 
   return (
-    <aside className="w-64 bg-gray-900 text-white min-h-screen flex flex-col shadow-xl">
+    <aside className="w-64 bg-gray-900 text-white min-h-screen flex flex-col shadow-xl z-50">
       {/* Encabezado del Sidebar */}
       <div className="p-6 border-b border-gray-800 flex items-center gap-3">
         <img 
@@ -35,22 +44,18 @@ export default function Sidebar() {
           alt="Avatar" 
           className="w-10 h-10 rounded-full border-2 border-indigo-500"
         />
-        <div>
-          <h2 className="font-bold text-sm">{session.user.name}</h2>
-          {/* CÓDIGO DE DEPURACIÓN */}
-          <div className="flex flex-col mt-1">
-             <span className="text-xs bg-yellow-600 px-2 py-1 rounded text-black font-bold font-mono">
-               DEBUG: '{role}'
-             </span>
-             <span className="text-[10px] text-gray-400">
-               ID: {session.user.id}
-             </span>
-          </div>
+        <div className="overflow-hidden">
+          <h2 className="font-bold text-sm truncate">{session.user.name}</h2>
+          <span className={`text-[10px] px-2 py-0.5 rounded text-white font-mono font-bold ${
+            role === 'ADMIN' ? 'bg-red-600' : 'bg-indigo-600'
+          }`}>
+            {role}
+          </span>
         </div>
       </div>
 
       {/* Navegación */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {/* Menú General */}
         <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">General</p>
         {menuItems.map((item) => (
@@ -59,7 +64,7 @@ export default function Sidebar() {
             href={item.path}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               pathname === item.path 
-                ? "bg-indigo-600 text-white" 
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" 
                 : "text-gray-400 hover:bg-gray-800 hover:text-white"
             }`}
           >
@@ -79,7 +84,7 @@ export default function Sidebar() {
                 href={item.path}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   pathname === item.path 
-                    ? "bg-red-900 text-white" 
+                    ? "bg-red-900 text-white shadow-lg shadow-red-900/30" 
                     : "text-gray-400 hover:bg-gray-800 hover:text-white"
                 }`}
               >
