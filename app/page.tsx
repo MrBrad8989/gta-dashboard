@@ -1,50 +1,74 @@
-"use client"; // Indica que esto se renderiza en el cliente (navegador)
+"use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
-import { FaDiscord } from "react-icons/fa"; // Icono de Discord
+import { signIn, useSession } from "next-auth/react";
+import Sidebar from "@/components/Sidebar"; // Importamos nuestro componente
+import { FaDiscord } from "react-icons/fa";
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
+  if (status === "loading") {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">Cargando...</div>;
+  }
+
+  // 1. SI NO ESTÁ LOGUEADO: Muestra pantalla de Login
+  if (!session) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-black text-white p-24">
+        <div className="text-center space-y-6">
+          <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+            GTA:W Management
+          </h1>
+          <p className="text-gray-400 text-lg">Sistema Integral de Gestión y Soporte</p>
+          <button
+            onClick={() => signIn("discord")}
+            className="flex items-center gap-3 bg-[#5865F2] hover:bg-[#4752C4] text-white px-8 py-3 rounded-xl text-lg font-bold transition shadow-lg shadow-indigo-500/20 mx-auto"
+          >
+            <FaDiscord size={28} />
+            Acceder con Discord
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // 2. SI ESTÁ LOGUEADO: Muestra el Dashboard con Sidebar
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-900 text-white p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex flex-col gap-8">
-        
-        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">
-          Panel de Gestión GTA:W
-        </h1>
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Barra Lateral Fija */}
+      <Sidebar />
 
-        {session ? (
-          // Si el usuario ESTÁ logueado
-          <div className="bg-gray-800 p-8 rounded-xl shadow-lg text-center">
-            <img 
-              src={session.user?.image || ""} 
-              alt="Avatar" 
-              className="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-green-500"
-            />
-            <p className="text-xl mb-4">Bienvenido, {session.user?.name}</p>
-            <p className="text-gray-400 mb-6">Acceso autorizado al sistema.</p>
-            <button
-              onClick={() => signOut()}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded transition"
-            >
-              Cerrar Sesión
-            </button>
+      {/* Contenido Principal */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        <header className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">Panel General</h1>
+          <div className="text-sm text-gray-500">
+            Último acceso: {new Date().toLocaleDateString()}
           </div>
-        ) : (
-          // Si el usuario NO ESTÁ logueado
-          <div className="text-center">
-            <p className="mb-6 text-gray-400">Inicia sesión con tu cuenta de Discord para acceder.</p>
-            <button
-              onClick={() => signIn("discord")}
-              className="flex items-center gap-3 bg-[#5865F2] hover:bg-[#4752C4] text-white px-8 py-3 rounded-lg text-lg font-bold transition shadow-lg shadow-indigo-500/20"
-            >
-              <FaDiscord size={24} />
-              Entrar con Discord
-            </button>
+        </header>
+
+        {/* Widgets de Ejemplo (Resumen) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 className="text-gray-500 text-sm font-bold uppercase">Estado de Cuenta</h3>
+            <p className="text-2xl font-bold text-green-600 mt-2">Activa</p>
           </div>
-        )}
-      </div>
-    </main>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 className="text-gray-500 text-sm font-bold uppercase">Mis Propiedades</h3>
+            <p className="text-2xl font-bold text-gray-800 mt-2">0</p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 className="text-gray-500 text-sm font-bold uppercase">Tickets Abiertos</h3>
+            <p className="text-2xl font-bold text-indigo-600 mt-2">Ninguno</p>
+          </div>
+        </div>
+
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+          <p className="text-blue-700">
+            <strong>Novedad:</strong> Bienvenido al nuevo sistema de gestión. Usa el menú lateral para navegar.
+          </p>
+        </div>
+      </main>
+    </div>
   );
 }
