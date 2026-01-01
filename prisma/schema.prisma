@@ -63,6 +63,8 @@ model Ticket {
   title       String
   description String       @db.Text
   status      TicketStatus @default(OPEN)
+
+  proofUrl    String?
   
   // Quién lo creó (Corregido a Int)
   creatorId   Int

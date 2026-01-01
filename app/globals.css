@@ -1,15 +1,14 @@
 @import "tailwindcss";
 
+/* Configuración del Modo Oscuro para Tailwind 4:
+   Le decimos que el modo oscuro se activa cuando la clase 'dark' está presente.
+*/
+@variant dark (&:where(.dark, .dark *));
+
+/* Estilos base por si acaso */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,7 +19,6 @@
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
 }
