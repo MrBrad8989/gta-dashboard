@@ -25,8 +25,8 @@ export default function Sidebar() {
   // Menú General
   const menuItems = [
     { name: "Inicio", path: "/", icon: <FaHome /> },
-    { name: "Soporte / Tickets", path: "/tickets", icon: <FaLifeRing /> }, // Ruta Azul
-    { name: "Reportes / Problemas", path: "/my-reports", icon: <FaGavel /> },   // Ruta Roja
+    { name: "Soporte / Problemas", path: "/tickets", icon: <FaLifeRing /> }, // Ruta Azul
+    { name: "Reportes", path: "/my-reports", icon: <FaGavel /> },   // Ruta Roja
   ];
 
   // Menú Admin
