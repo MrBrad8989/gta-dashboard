@@ -1,8 +1,8 @@
-import NextAuth, { DefaultSession } from "next-auth";
+import NextAuth, { DefaultSession, NextAuthOptions } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
 import { prisma } from "@/lib/prisma";
 
-// Definimos los tipos extra para que no se queje
+// Definimos los tipos extra
 declare module "next-auth" {
   interface Session {
     user: {
@@ -13,7 +13,8 @@ declare module "next-auth" {
   }
 }
 
-const handler = NextAuth({
+// 1. AQUÍ ESTÁ EL CAMBIO: Exportamos la configuración por separado
+export const authOptions: NextAuthOptions = {
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID as string,
@@ -22,21 +23,16 @@ const handler = NextAuth({
     }),
   ],
   callbacks: {
-    // 1. Cuando entras (Login), guardamos tu ID de Discord en el token interno
     async jwt({ token, account }) {
       if (account) {
         token.discordId = account.providerAccountId;
       }
       return token;
     },
-
-    // 2. Cuando entras (Login), actualizamos la DB
     async signIn({ user, account }) {
       if (!account?.providerAccountId) return false;
-
       const discordId = account.providerAccountId;
       
-      // Upsert: Si existe actualiza, si no existe lo crea
       await prisma.user.upsert({
         where: { discordId: discordId },
         update: {
@@ -48,13 +44,11 @@ const handler = NextAuth({
           discordId: discordId,
           name: user.name,
           avatar: user.image,
-          role: "USER", // Por defecto
+          role: "USER",
         },
       });
       return true;
     },
-
-    // 3. Cuando navegas (Session), leemos el Rol usando el ID de Discord (INFALIBLE)
     async session({ session, token }) {
       if (token.discordId) {
          const dbUser = await prisma.user.findUnique({
@@ -70,6 +64,9 @@ const handler = NextAuth({
       return session;
     }
   },
-});
+};
+
+// 2. Usamos la configuración exportada
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
