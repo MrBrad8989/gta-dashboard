@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client';
+
 export interface EventData {
   id: number;
   title: string;
@@ -13,7 +15,7 @@ export interface EventData {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason?: string | null;
   creatorId: number;
-  subscribers: string[] | unknown; // Stored as JSON in MySQL
+  subscribers: Prisma.JsonValue; // Stored as JSON in MySQL, represents string[]
   publicMessageId?: string | null;
   ticketChannelId?: string | null;
   startNotified: boolean;

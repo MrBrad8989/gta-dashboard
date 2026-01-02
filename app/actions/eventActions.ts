@@ -10,8 +10,7 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const REVIEW_CHANNEL_ID = process.env.DISCORD_EVENTS_CHANNEL_ID;
 
 export async function requestEvent(formData: FormData) {
-  // @ts-expect-error - authOptions types not fully compatible
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions as never);
   if (!session) throw new Error("Debes iniciar sesión.");
 
   const title = formData.get("title") as string;

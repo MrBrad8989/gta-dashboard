@@ -101,14 +101,6 @@ app.post('/api/evento', upload.fields([
     const needsMapping = data.needsMapping === 'true';
     const requiresSupport = needsCars || needsRadio || needsMapping;
 
-    const finalMappingPaths: string[] = [];
-    if (files['mappingFiles']) {
-        files['mappingFiles'].forEach((file) => {
-            // We'll update the filename after creating the event
-            finalMappingPaths.push(file.path);
-        });
-    }
-
     const flyerPath = files['flyer'] ? files['flyer'][0].path : null;
 
     // Create event in Prisma
@@ -123,7 +115,7 @@ app.post('/api/evento', upload.fields([
             needsRadio,
             needsMapping,
             mappingDesc: needsMapping ? data.mappingDesc : null,
-            mappingFiles: null, // Will update after renaming
+            mappingFiles: null, // Will update after renaming files
             status: EventStatus.PENDING,
             creatorId: parseInt(data.userId),
             subscribers: [],
@@ -133,7 +125,7 @@ app.post('/api/evento', upload.fields([
         }
     });
 
-    // Rename mapping files with event ID
+    // Rename mapping files with event ID and save paths
     const finalMappingPathsRenamed: string[] = [];
     if (files['mappingFiles']) {
         files['mappingFiles'].forEach((file, index) => {
