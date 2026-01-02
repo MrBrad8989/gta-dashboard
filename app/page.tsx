@@ -1,18 +1,13 @@
-"use client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma";
+import { FaDiscord, FaTicketAlt } from "react-icons/fa";
+import LoginButton from "@/components/LoginButton";
 
-import { signIn, useSession } from "next-auth/react";
-import { FaDiscord, FaTicketAlt, FaHome } from "react-icons/fa";
-
-export default function Home() {
-  const { data: session, status } = useSession();
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-        <div className="animate-pulse text-lg">Cargando...</div>
-      </div>
-    );
-  }
+export default async function Home() {
+  // @ts-ignore
+  const session = await getServerSession(authOptions);
+  const status = session ? "authenticated" : "unauthenticated";
 
   // 1. SI NO ESTÁ LOGUEADO:  Muestra pantalla de Login
   if (!session) {
@@ -41,13 +36,7 @@ export default function Home() {
           
           {/* Botón de Discord mejorado y más grande */}
           <div className="pt-4 sm:pt-6 md:pt-8 px-4">
-            <button
-              onClick={() => signIn("discord")}
-              className="group w-full max-w-md mx-auto inline-flex items-center justify-center gap-3 sm:gap-4 bg-gradient-to-r from-[#5865F2] to-[#4752C4] hover:from-[#4752C4] hover:to-[#3c45a5] text-white px-8 sm:px-12 md:px-16 py-4 sm:py-5 md:py-6 rounded-2xl sm:rounded-3xl text-lg sm:text-xl md:text-2xl font-bold transition-all duration-300 shadow-2xl hover:shadow-purple-500/50 hover:scale-105 active:scale-95"
-            >
-              <FaDiscord className="text-3xl sm:text-4xl md:text-5xl group-hover:rotate-12 transition-transform duration-300 flex-shrink-0" />
-              <span className="whitespace-nowrap">Conectar con Discord</span>
-            </button>
+            <LoginButton />
           </div>
 
           {/* Mensaje informativo */}
@@ -68,7 +57,24 @@ export default function Home() {
     );
   }
 
-  // 2. SI ESTÁ LOGUEADO: Muestra SOLO el contenido
+  // 2. SI ESTÁ LOGUEADO: Muestra SOLO el contenido con contador dinámico de tickets
+  const currentUserId = parseInt(session.user.id);
+  
+  // Obtener el conteo real de tickets del usuario actual
+  const ticketCount = await prisma.ticket.count({
+    where: {
+      AND: [
+        { type: { notIn: ['USER_REPORT', 'FACTION_REPORT'] } },
+        {
+          OR: [
+            { creatorId: currentUserId },
+            { participants: { some: { id: currentUserId } } }
+          ]
+        }
+      ]
+    }
+  });
+
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Banner Hero */}
@@ -81,7 +87,7 @@ export default function Home() {
           <p className="text-lg sm:text-xl md:text-2xl text-gray-200 drop-shadow-md">
             Bienvenido de nuevo, <span className="font-bold text-purple-300">{session.user.name}</span>
           </p>
-          <div className="mt-4 sm: mt-6 inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 sm:px-5 py-2 sm:py-3 rounded-full border border-white/20 w-fit">
+          <div className="mt-4 sm:mt-6 inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 sm:px-5 py-2 sm:py-3 rounded-full border border-white/20 w-fit">
             <span className="text-sm sm:text-base text-white font-medium">
               {new Date().toLocaleDateString('es-ES', { 
                 weekday: 'long',
@@ -95,50 +101,20 @@ export default function Home() {
       </div>
 
       {/* Widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 sm:gap-6 max-w-md mx-auto">
         
-        {/* Widget 1 - Estado de Cuenta */}
-        <div className="group bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 hover: shadow-xl hover:scale-[1.02]">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2">Estado de Cuenta</h3>
-              <p className="text-3xl sm:text-4xl font-extrabold text-green-600 dark:text-green-400">Activa</p>
-            </div>
-            <div className="p-3 sm:p-4 bg-gradient-to-br from-green-400 to-green-600 rounded-xl text-white shadow-lg group-hover:rotate-12 transition-transform duration-300">
-              <FaHome className="w-6 h-6 sm:w-8 sm:h-8" />
-            </div>
-          </div>
-          <div className="h-1 bg-gradient-to-r from-green-400 to-green-600 rounded-full"></div>
-        </div>
-
-        {/* Widget 2 - Mis Tickets */}
+        {/* Widget - Mis Tickets */}
         <div className="group bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h3 className="text-gray-500 dark:text-gray-400 text-xs sm: text-sm font-bold uppercase tracking-wider mb-2">Mis Tickets</h3>
-              <p className="text-3xl sm:text-4xl font-extrabold text-gray-800 dark:text-white">0</p>
+              <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2">Mis Tickets</h3>
+              <p className="text-3xl sm:text-4xl font-extrabold text-gray-800 dark:text-white">{ticketCount}</p>
             </div>
-            <div className="p-3 sm:p-4 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-xl text-white shadow-lg group-hover: rotate-12 transition-transform duration-300">
-              <FaTicketAlt className="w-6 h-6 sm: w-8 sm:h-8" />
+            <div className="p-3 sm:p-4 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-xl text-white shadow-lg group-hover:rotate-12 transition-transform duration-300">
+              <FaTicketAlt className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
           <div className="h-1 bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full"></div>
-        </div>
-
-        {/* Widget 3 - Rol Actual */}
-        <div className="group bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] sm:col-span-2 lg:col-span-1">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex-1">
-              <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2">Rol Actual</h3>
-              <p className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-cyan-600 text-transparent bg-clip-text break-words">
-                {session. user.role}
-              </p>
-            </div>
-            <div className="p-3 sm:p-4 bg-gradient-to-br from-purple-400 to-cyan-400 rounded-xl text-white shadow-lg group-hover: rotate-12 transition-transform duration-300 flex-shrink-0">
-              <FaHome className="w-6 h-6 sm:w-8 sm:h-8" />
-            </div>
-          </div>
-          <div className="h-1 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-full"></div>
         </div>
       </div>
 
@@ -146,8 +122,8 @@ export default function Home() {
       <div className="relative overflow-hidden bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 border-l-4 border-blue-500 p-6 sm:p-8 rounded-2xl shadow-lg backdrop-blur-sm">
         <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
           <div className="flex-shrink-0 p-3 bg-blue-500 rounded-xl">
-            <svg className="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3. 586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
+            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
             </svg>
           </div>
           <div className="flex-1">
@@ -168,10 +144,10 @@ export default function Home() {
           <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-3">📋 Acceso Rápido</h3>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Accede a las funciones más utilizadas</p>
           <div className="flex flex-wrap gap-2 sm:gap-3">
-            <span className="px-4 py-2 bg-white dark:bg-gray-800 rounded-full text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark: border-gray-700">
+            <span className="px-4 py-2 bg-white dark:bg-gray-800 rounded-full text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
               Tickets
             </span>
-            <span className="px-4 py-2 bg-white dark: bg-gray-800 rounded-full text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+            <span className="px-4 py-2 bg-white dark:bg-gray-800 rounded-full text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
               Reportes
             </span>
             <span className="px-4 py-2 bg-white dark:bg-gray-800 rounded-full text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
@@ -180,7 +156,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 dark:from-cyan-500/20 dark:to-blue-500/20 p-6 sm:p-8 rounded-2xl border border-cyan-300 dark: border-cyan-700">
+        <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 dark:from-cyan-500/20 dark:to-blue-500/20 p-6 sm:p-8 rounded-2xl border border-cyan-300 dark:border-cyan-700">
           <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-3">ℹ️ Información</h3>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Estado del sistema y estadísticas</p>
           <div className="space-y-3 text-sm sm:text-base">
