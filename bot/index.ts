@@ -1,6 +1,9 @@
-require('dotenv').config();
-const express = require('express');
-const { 
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+import * as express from 'express';
+import { Request, Response } from 'express';
+import { 
     Client, 
     GatewayIntentBits, 
     EmbedBuilder, 
@@ -11,14 +14,34 @@ const {
     TextInputBuilder, 
     TextInputStyle, 
     ChannelType, 
-    PermissionFlagsBits 
-} = require('discord.js');
-const dayjs = require('dayjs');
-const utc = require('dayjs/plugin/utc'); 
-const timezone = require('dayjs/plugin/timezone');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+    PermissionFlagsBits,
+    Interaction,
+    TextChannel
+} from 'discord.js';
+import * as dayjs from 'dayjs';
+import * as utc from 'dayjs/plugin/utc';
+import * as timezone from 'dayjs/plugin/timezone';
+import * as multer from 'multer';
+import * as path from 'path';
+import * as fs from 'fs';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// EventStatus enum from Prisma
+enum EventStatus {
+    PENDING = 'PENDING',
+    APPROVED = 'APPROVED',
+    REJECTED = 'REJECTED'
+}
+
+// Helper function to safely parse subscribers JSON
+function parseSubscribers(subscribers: unknown): string[] {
+    if (Array.isArray(subscribers)) {
+        return subscribers.filter((s): s is string => typeof s === 'string');
+    }
+    return [];
+}
 
 // --- CONFIGURACIÓN HORARIA ---
 dayjs.extend(utc);
@@ -46,48 +69,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// --- PERSISTENCIA DE DATOS (JSON) ---
-const DATA_FILE = 'data.json';
-let events = []; 
-
-function loadData() {
-    if (fs.existsSync(DATA_FILE)) {
-        try {
-            const raw = fs.readFileSync(DATA_FILE);
-            events = JSON.parse(raw);
-            console.log(`💾 Datos cargados: ${events.length} eventos.`);
-        } catch (e) {
-            console.error("Error cargando data.json", e);
-            events = [];
-        }
-    }
-}
-
-function saveData() {
-    try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(events, null, 2));
-    } catch (e) { console.error("Error guardando datos", e); }
-}
-
-loadData();
-
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
-
-// --- API: GET ---
-app.get('/api/eventos', (req, res) => {
-    res.json(events);
-});
 
 // --- API: POST ---
 app.post('/api/evento', upload.fields([
     { name: 'flyer', maxCount: 1 }, 
     { name: 'mappingFiles', maxCount: 10 }
-]), async (req, res) => {
+]), async (req: Request, res: Response) => {
     
     const data = req.body;
-    let files = req.files || {};
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } || {};
 
     const dateObj = dayjs.utc(data.date);
     const minutes = dateObj.minute();
@@ -97,58 +90,71 @@ app.post('/api/evento', upload.fields([
         return res.status(400).json({ error: "La hora debe ser en punto (:00) o y media (:30)." });
     }
 
-    const isTaken = events.some(e => e.status !== 'rejected' && dayjs(e.date).isSame(dateObj));
+    // Check if date is taken using Prisma
+    const isTaken = await prisma.event.findFirst({
+        where: {
+            eventDate: dateObj.toDate(),
+            status: { not: EventStatus.REJECTED }
+        }
+    });
+    
     if (isTaken) {
         if(files['flyer']) fs.unlinkSync(files['flyer'][0].path);
         if(files['mappingFiles']) files['mappingFiles'].forEach(f => fs.unlinkSync(f.path));
         return res.status(400).json({ error: "Fecha ocupada." });
     }
 
-    const eventId = Date.now().toString();
     const needsCars = data.needsCars === 'true';
     const needsRadio = data.needsRadio === 'true';
     const needsMapping = data.needsMapping === 'true';
     const requiresSupport = needsCars || needsRadio || needsMapping;
 
-    let finalMappingPaths = [];
+    const flyerPath = files['flyer'] ? files['flyer'][0].path : null;
+
+    // Create event in Prisma
+    const newEvent = await prisma.event.create({
+        data: {
+            title: data.title,
+            description: data.description,
+            eventDate: dateObj.toDate(),
+            flyerUrl: flyerPath || '',
+            needsCars,
+            carsDesc: needsCars ? data.carsDesc : null,
+            needsRadio,
+            needsMapping,
+            mappingDesc: needsMapping ? data.mappingDesc : null,
+            mappingFiles: null, // Will update after renaming files
+            status: EventStatus.PENDING,
+            creatorId: parseInt(data.userId),
+            subscribers: [],
+            publicMessageId: null,
+            startNotified: false,
+            ticketChannelId: null
+        }
+    });
+
+    // Rename mapping files with event ID and save paths
+    const finalMappingPathsRenamed: string[] = [];
     if (files['mappingFiles']) {
         files['mappingFiles'].forEach((file, index) => {
             const ext = path.extname(file.originalname);
-            const newFilename = `${eventId}-${index + 1}${ext}`;
+            const newFilename = `${newEvent.id}-${index + 1}${ext}`;
             const newPath = path.join('public/uploads/mapping/', newFilename);
             try {
                 fs.renameSync(file.path, newPath);
-                finalMappingPaths.push(newPath);
+                finalMappingPathsRenamed.push(newPath);
             } catch (err) { console.error(err); }
         });
-    }
-
-    const flyerPath = files['flyer'] ? files['flyer'][0].path : null;
-
-    const newEvent = {
-        id: eventId,
-        userId: data.userId,
-        title: data.title,
-        description: data.description,
-        date: dateObj.format(), 
-        timestamp: dateObj.unix(), 
-        flyerPath: flyerPath,
-        needsCars, carsDesc: data.carsDesc || 'No',
-        needsRadio,
-        needsMapping, mappingDesc: data.mappingDesc || 'No',
-        mappingFiles: finalMappingPaths,
-        status: 'pending',
-        reason: '',
-        subscribers: [],    
-        publicMessageId: null, 
-        startNotified: false   
-    };
-    
-    events.push(newEvent);
-    saveData(); 
+        
+        // Update event with mapping files
+        await prisma.event.update({
+            where: { id: newEvent.id },
+            data: { mappingFiles: finalMappingPathsRenamed.join(',') }
+        });
+    } 
 
     // --- ENVIAR A DISCORD (ADMIN) ---
-    const adminChannel = client.channels.cache.get(process.env.CHANNEL_ID_SOLICITUDES);
+    const adminChannel = client.channels.cache.get(process.env.CHANNEL_ID_SOLICITUDES || '') as TextChannel | undefined;
     if (adminChannel) {
         const embed = new EmbedBuilder()
             .setTitle(requiresSupport ? '🚨 SOLICITUD CON SOPORTE TÉCNICO' : '📢 Nueva Solicitud Estándar')
@@ -170,19 +176,20 @@ app.post('/api/evento', upload.fields([
         }
 
         const attachments = [];
-        if (newEvent.flyerPath) {
-            attachments.push({ attachment: newEvent.flyerPath, name: 'flyer.png' });
+        if (newEvent.flyerUrl) {
+            attachments.push({ attachment: newEvent.flyerUrl, name: 'flyer.png' });
             embed.setImage('attachment://flyer.png');
         }
 
-        if (newEvent.mappingFiles.length > 0) {
-            newEvent.mappingFiles.forEach((p, i) => {
+        const mappingFilesArray = newEvent.mappingFiles ? newEvent.mappingFiles.split(',').filter((f: string) => f) : [];
+        if (mappingFilesArray.length > 0) {
+            mappingFilesArray.forEach((p: string, i: number) => {
                 attachments.push({ attachment: p, name: `mapeo-${i+1}.png` });
             });
-            embed.addFields({ name: '📂 Archivos de Mapeo', value: `Se han adjuntado ${newEvent.mappingFiles.length} imágenes de referencia.` });
+            embed.addFields({ name: '📂 Archivos de Mapeo', value: `Se han adjuntado ${mappingFilesArray.length} imágenes de referencia.` });
         }
 
-        const row = new ActionRowBuilder().addComponents(
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
             new ButtonBuilder().setCustomId(`accept_${newEvent.id}`).setLabel('Aceptar').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`reject_${newEvent.id}`).setLabel('Rechazar').setStyle(ButtonStyle.Danger)
         );
@@ -194,13 +201,15 @@ app.post('/api/evento', upload.fields([
 });
 
 // --- INTERACCIONES DISCORD ---
-client.on('interactionCreate', async interaction => {
+client.on('interactionCreate', async (interaction: Interaction) => {
     
     // --- LÓGICA BOTÓN CERRAR TICKET ---
     if (interaction.isButton() && interaction.customId === 'close_ticket') {
         await interaction.reply({ content: '🗑️ Cerrando ticket y eliminando canal en 5 segundos...', ephemeral: false });
         setTimeout(() => {
-            interaction.channel.delete().catch(e => console.error("Error borrando canal:", e));
+            if (interaction.channel?.type === ChannelType.GuildText) {
+                interaction.channel.delete().catch(e => console.error("Error borrando canal:", e));
+            }
         }, 5000);
         return;
     }
@@ -211,112 +220,132 @@ client.on('interactionCreate', async interaction => {
         // Verificar si es un botón de evento (accept/reject/interested)
         if (!customId.includes('_')) return;
 
-        const [action, eventId] = customId.split('_');
-        const eventIndex = events.findIndex(e => e.id === eventId);
+        const [action, eventIdStr] = customId.split('_');
+        const eventId = parseInt(eventIdStr);
         
-        if (eventIndex === -1 && action !== 'close') return interaction.reply({ content: '❌ Evento no encontrado o expirado.', ephemeral: true });
-        const evt = events[eventIndex];
+        // Get event from Prisma
+        const evt = await prisma.event.findUnique({ where: { id: eventId } });
+        
+        if (!evt && action !== 'close') {
+            return interaction.reply({ content: '❌ Evento no encontrado o expirado.', ephemeral: true });
+        }
 
         // RECHAZAR
-        if (action === 'reject') {
+        if (action === 'reject' && evt) {
             const modal = new ModalBuilder().setCustomId(`modalReject_${eventId}`).setTitle('Motivo del Rechazo');
             const reasonInput = new TextInputBuilder().setCustomId('reason').setLabel("Motivo").setStyle(TextInputStyle.Paragraph);
-            modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+            modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput));
             await interaction.showModal(modal);
         }
 
         // ACEPTAR
-        if (action === 'accept') {
-            events[eventIndex].status = 'accepted';
-            saveData(); 
+        if (action === 'accept' && evt) {
+            // Update event status to APPROVED
+            await prisma.event.update({
+                where: { id: eventId },
+                data: { status: EventStatus.APPROVED }
+            });
 
             // 1. PUBLICAR EN ANUNCIOS
-            const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS);
+            const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS || '') as TextChannel | undefined;
             if (publicChannel) {
+                const timestamp = Math.floor(evt.eventDate.getTime() / 1000);
                 const publicEmbed = new EmbedBuilder()
                     .setTitle(`📅 Nuevo Evento: ${evt.title}`)
                     .setDescription(evt.description)
                     .setColor(0x5865F2) 
                     .addFields(
-                        { name: '🕒 Fecha y Hora', value: `<t:${evt.timestamp}:F>\n(<t:${evt.timestamp}:R>)`, inline: false },
+                        { name: '🕒 Fecha y Hora', value: `<t:${timestamp}:F>\n(<t:${timestamp}:R>)`, inline: false },
                         { name: '👥 Interesados', value: '0 personas', inline: false }
                     )
                     .setFooter({ text: `Evento solicitado al Equipo de Eventos del PM.` });
 
                 const filesToSend = [];
-                if (evt.flyerPath) {
-                    filesToSend.push({ attachment: evt.flyerPath, name: 'flyer.png' });
+                if (evt.flyerUrl) {
+                    filesToSend.push({ attachment: evt.flyerUrl, name: 'flyer.png' });
                     publicEmbed.setImage('attachment://flyer.png'); 
                 }
 
-                const interestBtn = new ActionRowBuilder().addComponents(
+                const interestBtn = new ActionRowBuilder<ButtonBuilder>().addComponents(
                     new ButtonBuilder().setCustomId(`interested_${evt.id}`).setLabel('Me interesa').setEmoji('⭐').setStyle(ButtonStyle.Primary)
                 );
 
                 const sentMsg = await publicChannel.send({ embeds: [publicEmbed], files: filesToSend, components: [interestBtn] });
-                events[eventIndex].publicMessageId = sentMsg.id;
-                saveData(); 
+                
+                // Update event with publicMessageId
+                await prisma.event.update({
+                    where: { id: eventId },
+                    data: { publicMessageId: sentMsg.id }
+                });
             }
 
-            // 2. CREAR TICKET SI ES NECESARIO (Lógica movida aquí)
+            // 2. CREAR TICKET SI ES NECESARIO
             const requiresSupport = evt.needsCars || evt.needsRadio || evt.needsMapping;
             let ticketMention = "No requiere ticket.";
 
             if (requiresSupport && process.env.CATEGORY_ID_TICKETS) {
                 const guild = interaction.guild;
-                try {
-                    // Crear canal ticket-evento-ID
-                    const ticketChannel = await guild.channels.create({
-                        name: `ticket-evento-${eventId}`,
-                        type: ChannelType.GuildText,
-                        parent: process.env.CATEGORY_ID_TICKETS, // ID de la Categoría
-                        permissionOverwrites: [
-                            {
-                                id: guild.id, // @everyone (Bloquear ver)
-                                deny: [PermissionFlagsBits.ViewChannel],
-                            },
-                            {
-                                id: evt.userId, // Usuario solicitante (Permitir ver y escribir)
-                                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles],
-                            },
-                            {
-                                id: interaction.user.id, // Staff que acepta
-                                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                            },
-                            {
-                                id: client.user.id, // Bot (Permisos totales)
-                                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels],
-                            }
-                        ],
-                    });
-                    
-                    ticketMention = ticketChannel.toString();
+                if (guild) {
+                    try {
+                        // Crear canal ticket-evento-ID
+                        const ticketChannel = await guild.channels.create({
+                            name: `ticket-evento-${eventId}`,
+                            type: ChannelType.GuildText,
+                            parent: process.env.CATEGORY_ID_TICKETS,
+                            permissionOverwrites: [
+                                {
+                                    id: guild.id,
+                                    deny: [PermissionFlagsBits.ViewChannel],
+                                },
+                                {
+                                    id: evt.creatorId.toString(),
+                                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles],
+                                },
+                                {
+                                    id: interaction.user.id,
+                                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                                },
+                                {
+                                    id: client.user!.id,
+                                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels],
+                                }
+                            ],
+                        });
+                        
+                        ticketMention = ticketChannel.toString();
 
-                    // Crear botón de Cerrar Ticket
-                    const closeBtnRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('close_ticket')
-                            .setLabel('Cerrar Ticket')
-                            .setStyle(ButtonStyle.Danger)
-                            .setEmoji('🗑️')
-                    );
+                        // Update event with ticketChannelId
+                        await prisma.event.update({
+                            where: { id: eventId },
+                            data: { ticketChannelId: ticketChannel.id }
+                        });
 
-                    // Reconstruir embed básico para contexto en el ticket
-                    const contextEmbed = new EmbedBuilder()
-                         .setTitle(`Soporte para: ${evt.title}`)
-                         .setDescription(`Canal creado para coordinar: \n${evt.needsCars ? '• Coches\n' : ''}${evt.needsMapping ? '• Mapeo\n' : ''}${evt.needsRadio ? '• Radio' : ''}`)
-                         .setColor(0xFFA500);
+                        // Crear botón de Cerrar Ticket
+                        const closeBtnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('close_ticket')
+                                .setLabel('Cerrar Ticket')
+                                .setStyle(ButtonStyle.Danger)
+                                .setEmoji('🗑️')
+                        );
 
-                    // Enviar mensaje de bienvenida en el nuevo canal con el botón
-                    await ticketChannel.send({
-                        content: `👋 Hola <@${evt.userId}>,\n\nEste es tu canal privado de soporte. Un administrador te atenderá pronto.\nCuando finalice el soporte, pulsa el botón para borrar el chat.`,
-                        embeds: [contextEmbed],
-                        components: [closeBtnRow]
-                    });
+                        // Reconstruir embed básico para contexto en el ticket
+                        const contextEmbed = new EmbedBuilder()
+                             .setTitle(`Soporte para: ${evt.title}`)
+                             .setDescription(`Canal creado para coordinar: \n${evt.needsCars ? '• Coches\n' : ''}${evt.needsMapping ? '• Mapeo\n' : ''}${evt.needsRadio ? '• Radio' : ''}`)
+                             .setColor(0xFFA500);
 
-                } catch (error) {
-                    console.error("Error creando canal de ticket:", error);
-                    ticketMention = "Error al crear ticket.";
+                        // Enviar mensaje de bienvenida en el nuevo canal con el botón
+                        await ticketChannel.send({
+                            content: `👋 Hola <@${evt.creatorId}>,\n\nEste es tu canal privado de soporte. Un administrador te atenderá pronto.\nCuando finalice el soporte, pulsa el botón para borrar el chat.`,
+                            embeds: [contextEmbed],
+                            components: [closeBtnRow]
+                        });
+
+                    } catch (error) {
+                        console.error("Error creando canal de ticket:", error);
+                        ticketMention = "Error al crear ticket.";
+                    }
                 }
             }
 
@@ -327,27 +356,40 @@ client.on('interactionCreate', async interaction => {
         }
 
         // ME INTERESA
-        if (action === 'interested') {
+        if (action === 'interested' && evt) {
             const userId = interaction.user.id;
-            if (!evt.subscribers.includes(userId)) {
-                events[eventIndex].subscribers.push(userId);
-                saveData(); 
+            // Handle subscribers as JSON/array with type safety
+            const subscribers = parseSubscribers(evt.subscribers);
+            
+            if (!subscribers.includes(userId)) {
+                // Update event with new subscriber
+                await prisma.event.update({
+                    where: { id: eventId },
+                    data: {
+                        subscribers: [...subscribers, userId]
+                    }
+                });
             } else {
                  return interaction.reply({ content: 'Ya estabas apuntado.', ephemeral: true });
             }
 
-            const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS);
+            const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS || '') as TextChannel | undefined;
             if (publicChannel && evt.publicMessageId) {
                 try {
                     const msgToEdit = await publicChannel.messages.fetch(evt.publicMessageId);
                     const oldEmbed = msgToEdit.embeds[0];
                     const newEmbed = EmbedBuilder.from(oldEmbed);
                     
-                    if (evt.flyerPath) newEmbed.setImage('attachment://flyer.png');
+                    if (evt.flyerUrl) newEmbed.setImage('attachment://flyer.png');
 
-                    const count = events[eventIndex].subscribers.length;
-                    const fieldIndex = newEmbed.data.fields.findIndex(f => f.name.includes('Interesados'));
-                    if (fieldIndex !== -1) newEmbed.data.fields[fieldIndex].value = `${count} persona${count === 1 ? '' : 's'}`;
+                    // Get updated subscriber count
+                    const updatedEvent = await prisma.event.findUnique({ where: { id: eventId } });
+                    const updatedSubscribers = parseSubscribers(updatedEvent?.subscribers);
+                    const count = updatedSubscribers.length;
+                    const fieldIndex = newEmbed.data.fields?.findIndex(f => f.name.includes('Interesados'));
+                    if (fieldIndex !== undefined && fieldIndex !== -1 && newEmbed.data.fields) {
+                        newEmbed.data.fields[fieldIndex].value = `${count} persona${count === 1 ? '' : 's'}`;
+                    }
                     
                     await msgToEdit.edit({ embeds: [newEmbed] });
                 } catch (err) { console.error(err); }
@@ -357,17 +399,21 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isModalSubmit() && interaction.customId.startsWith('modalReject_')) {
-        const eventId = interaction.customId.split('_')[1];
+        const eventIdStr = interaction.customId.split('_')[1];
+        const eventId = parseInt(eventIdStr);
         const reason = interaction.fields.getTextInputValue('reason');
-        const index = events.findIndex(e => e.id === eventId);
-        if (index !== -1) {
-            events[index].status = 'rejected';
-            events[index].reason = reason;
-            saveData(); 
-        }
+        
+        // Update event status to REJECTED with reason
+        await prisma.event.update({
+            where: { id: eventId },
+            data: {
+                status: EventStatus.REJECTED,
+                rejectionReason: reason
+            }
+        });
 
         await interaction.reply({ content: '❌ Rechazado.', ephemeral: true });
-        await interaction.message.edit({ components: [] });
+        await interaction.message?.edit({ components: [] });
     }
 });
 
@@ -376,6 +422,7 @@ setInterval(async () => {
     const now = dayjs.utc();
     const nowUnix = now.unix(); 
 
+    // Cleanup mapping files at midnight
     if (now.format('HH:mm') === '00:00') {
         const mappingDir = 'public/uploads/mapping/';
         if (fs.existsSync(mappingDir)) {
@@ -388,40 +435,56 @@ setInterval(async () => {
         }
     }
 
-    let modified = false;
-    for (let i = 0; i < events.length; i++) {
-        const evt = events[i];
-        if (evt.status === 'accepted' && !evt.startNotified) {
-            const diffSeconds = evt.timestamp - nowUnix;
-            if (diffSeconds <= 60 && diffSeconds > -120) {
-                const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS);
-                if (publicChannel) {
-                    const startEmbed = new EmbedBuilder()
-                        .setTitle(`🔔 ¡El Evento Comienza YA!: ${evt.title}`)
-                        .setDescription(`El evento está empezando ahora mismo.\n\n**Interesados:** ${evt.subscribers.length} personas.`)
-                        .setColor(0xFF0000) 
-                        .setTimestamp();
+    // Get events that need notification
+    const eventsToNotify = await prisma.event.findMany({
+        where: {
+            status: EventStatus.APPROVED,
+            startNotified: false
+        }
+    });
 
-                    await publicChannel.send({ 
-                        content: `📢 ¡Atención! El evento de <@${evt.userId}> comienza ahora.`, 
-                        embeds: [startEmbed] 
-                    });
+    for (const evt of eventsToNotify) {
+        const timestamp = Math.floor(evt.eventDate.getTime() / 1000);
+        const diffSeconds = timestamp - nowUnix;
+        
+        // Notify if event starts within 60 seconds (but not more than 2 minutes ago)
+        if (diffSeconds <= 60 && diffSeconds > -120) {
+            const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS || '') as TextChannel | undefined;
+            if (publicChannel) {
+                const subscribers = parseSubscribers(evt.subscribers);
+                const startEmbed = new EmbedBuilder()
+                    .setTitle(`🔔 ¡El Evento Comienza YA!: ${evt.title}`)
+                    .setDescription(`El evento está empezando ahora mismo.\n\n**Interesados:** ${subscribers.length} personas.`)
+                    .setColor(0xFF0000) 
+                    .setTimestamp();
 
-                    evt.subscribers.forEach(async userId => {
-                        try {
-                            const user = await client.users.fetch(userId);
-                            await user.send(`🚀 **¡Corre!** El evento **${evt.title}** está comenzando ahora.`);
-                        } catch (e) {}
-                    });
-                    events[i].startNotified = true;
-                    modified = true;
+                await publicChannel.send({ 
+                    content: `📢 ¡Atención! El evento de <@${evt.creatorId}> comienza ahora.`, 
+                    embeds: [startEmbed] 
+                });
+
+                // Send DMs to subscribers
+                for (const userId of subscribers) {
+                    try {
+                        const user = await client.users.fetch(userId);
+                        await user.send(`🚀 **¡Corre!** El evento **${evt.title}** está comenzando ahora.`);
+                    } catch {
+                        // User has DMs disabled or other error
+                    }
                 }
+                
+                // Mark as notified
+                await prisma.event.update({
+                    where: { id: evt.id },
+                    data: { startNotified: true }
+                });
             }
         }
     }
-    if (modified) saveData(); 
 
 }, 60000); 
 
 client.login(process.env.DISCORD_TOKEN);
-app.listen(process.env.PORT, () => console.log(`Puerto ${process.env.PORT}`));
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`🚀 Bot server running on port ${PORT}`));

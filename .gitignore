@@ -40,4 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# bot data (deprecated - now using Prisma)
+data.json
+
 /app/generated/prisma

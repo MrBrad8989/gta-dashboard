@@ -10,8 +10,7 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const REVIEW_CHANNEL_ID = process.env.DISCORD_EVENTS_CHANNEL_ID;
 
 export async function requestEvent(formData: FormData) {
-  // @ts-ignore
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions as never);
   if (!session) throw new Error("Debes iniciar sesión.");
 
   const title = formData.get("title") as string;
@@ -42,7 +41,7 @@ export async function requestEvent(formData: FormData) {
   }
 
   // 2. Subir Mapeo
-  let mappingUrls: string[] = [];
+  const mappingUrls: string[] = [];
   if (needsMapping && mappingFiles.length > 0) {
       for (const file of mappingFiles) {
           if (file.size > 0) {
@@ -64,9 +63,14 @@ export async function requestEvent(formData: FormData) {
       needsRadio,
       needsMapping,
       mappingDesc: needsMapping ? mappingDesc : null,
-      mappingFiles: mappingUrls.join(","),
+      mappingFiles: mappingUrls.length > 0 ? mappingUrls.join(",") : null,
       status: 'PENDING',
-      creatorId: parseInt(session.user.id)
+      creatorId: parseInt(session.user.id),
+      subscribers: [],
+      publicMessageId: null,
+      startNotified: false,
+      ticketChannelId: null,
+      rejectionReason: null
     }
   });
 
