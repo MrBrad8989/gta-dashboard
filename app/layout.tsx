@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: "GTA:W Management",
   description: "Panel de Gestión",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/favicon.png",
   },
 };
 

@@ -31,48 +31,58 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (token.discordId) {
-        const dbUser = await prisma.user.findUnique({
-          where: { discordId: token.discordId as string },
+      if (token. discordId) {
+        const dbUser = await prisma.user. findUnique({
+          where:  { discordId: token.discordId as string },
         });
 
         if (dbUser) {
-          session.user.id = dbUser.id.toString(); // ✅ ID numérico como string
-          session.user.role = dbUser.role;
+          session.user. id = dbUser.id. toString();
+          session.user. role = dbUser.role;
           session.user.discordId = dbUser.discordId;
         }
       }
       return session;
     },
     async signIn({ user, account, profile }) {
-      if (!profile) return false;
+      if (! profile) return false;
 
-      const existingUser = await prisma.user.findUnique({
-        where: { discordId: profile.id as string },
-      });
-
-      if (!existingUser) {
-        await prisma.user.create({
-          data: {
-            discordId: profile.id as string,
-            name: profile.name || (profile as any).username,
-            avatar: (profile as any).avatar,
-            role: "USER",
-          },
-        });
-      } else {
-        await prisma.user.update({
+      try {
+        const existingUser = await prisma.user.findUnique({
           where: { discordId: profile.id as string },
-          data: { lastLogin: new Date() },
         });
-      }
 
-      return true;
+        if (! existingUser) {
+          await prisma.user.create({
+            data: {
+              discordId: profile.id as string,
+              name: profile.name || (profile as any).username,
+              avatar: (profile as any).avatar,
+              role: "USER",
+            },
+          });
+        } else {
+          await prisma. user.update({
+            where: { discordId: profile.id as string },
+            data: { lastLogin: new Date() },
+          });
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error en signIn:", error);
+        return false;
+      }
     },
   },
   session: {
     strategy: "jwt",
   },
+  pages: {
+    signIn:  "/", // ✅ Redirigir a home si falla
+    error: "/",  // ✅ Redirigir a home en caso de error
+  },
+  secret: process.env.NEXTAUTH_SECRET, // ✅ CRÍTICO
 };
 
 const handler = NextAuth(authOptions);
