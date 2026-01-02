@@ -1,12 +1,14 @@
 {
   "name": "gta-dashboard",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "bot":  "ts-node bot/index.ts"
   },
   "dependencies": {
     "@types/express": "^5.0.6",
@@ -37,9 +39,8 @@
     "prisma": "^5.10.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   },
-  "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  }
+  "prisma": {}
 }

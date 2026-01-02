@@ -2,51 +2,58 @@
 
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth"; // ✅ Cambiar ruta
 import { revalidatePath } from "next/cache";
 import { saveFile } from "@/lib/upload";
 
-const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const REVIEW_CHANNEL_ID = process.env.DISCORD_EVENTS_CHANNEL_ID;
+const DISCORD_BOT_TOKEN = process.env. DISCORD_BOT_TOKEN;
+const REVIEW_CHANNEL_ID = process. env.DISCORD_EVENTS_CHANNEL_ID;
 
 export async function requestEvent(formData: FormData) {
-  const session = await getServerSession(authOptions as never);
+  // @ts-ignore
+  const session = await getServerSession(authOptions);
   if (!session) throw new Error("Debes iniciar sesión.");
 
+  // ✅ Debug: Ver qué valor tiene session.user.id
+  console. log('Session user ID:', session. user.id);
+  console.log('Session user ID type:', typeof session.user.id);
+
+  // ✅ Obtener el usuario de la base de datos usando discordId
+  const user = await prisma.user.findUnique({
+    where: { discordId: session.user.discordId }
+  });
+
+  if (!user) {
+    throw new Error("Usuario no encontrado en la base de datos");
+  }
+
+  console.log('Found user in DB:', user. id);
+
+  // 1. Recoger datos
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const eventDateStr = formData.get("date") as string;
-  
-  // Archivos
   const flyerFile = formData.get("flyer") as File;
-  const mappingFiles = formData.getAll("mappingFiles") as File[];
-
-  // Booleans
+  
   const needsCars = formData.get("needsCars") === "true";
   const carsDesc = formData.get("carsDesc") as string;
   const needsRadio = formData.get("needsRadio") === "true";
   const needsMapping = formData.get("needsMapping") === "true";
-  const mappingDesc = formData.get("mappingDesc") as string;
+  const mappingDesc = formData. get("mappingDesc") as string;
+  const mappingFiles = formData.getAll("mappingFiles") as File[];
 
-  if (!title || !description || !eventDateStr) {
-    throw new Error("Faltan datos obligatorios.");
-  }
-
-  // 1. Subir Flyer
+  // 2. Subir Archivos
   let flyerUrl = "";
   if (flyerFile && flyerFile.size > 0) {
       flyerUrl = await saveFile(flyerFile, "flyers");
-  } else {
-      throw new Error("El flyer es obligatorio.");
   }
 
-  // 2. Subir Mapeo
-  const mappingUrls: string[] = [];
+  let mappingUrls:  string[] = [];
   if (needsMapping && mappingFiles.length > 0) {
       for (const file of mappingFiles) {
           if (file.size > 0) {
               const url = await saveFile(file, "mapping");
-              mappingUrls.push(url);
+              mappingUrls. push(url);
           }
       }
   }
@@ -56,58 +63,51 @@ export async function requestEvent(formData: FormData) {
     data: {
       title,
       description,
-      eventDate: new Date(eventDateStr),
+      eventDate:  new Date(eventDateStr),
       flyerUrl,
       needsCars,
-      carsDesc: needsCars ? carsDesc : null,
+      carsDesc:  needsCars ? carsDesc : null,
       needsRadio,
       needsMapping,
-      mappingDesc: needsMapping ? mappingDesc : null,
-      mappingFiles: mappingUrls.length > 0 ? mappingUrls.join(",") : null,
+      mappingDesc:  needsMapping ? mappingDesc :  null,
+      mappingFiles:  mappingUrls. join(","),
       status: 'PENDING',
-      creatorId: parseInt(session.user.id),
+      creatorId: user.id, // ✅ Usar el ID del usuario de la DB (número)
       subscribers: [],
       publicMessageId: null,
       startNotified: false,
-      ticketChannelId: null,
-      rejectionReason: null
+      ticketChannelId: null
     }
   });
 
-  // 4. Enviar a Discord (CON DEPURACIÓN)
-  console.log("--- INTENTANDO ENVIAR A DISCORD ---");
-  console.log("Canal:", REVIEW_CHANNEL_ID);
-  console.log("Token existe:", !!DISCORD_BOT_TOKEN);
-
+  // 4. Enviar a Discord
   if (DISCORD_BOT_TOKEN && REVIEW_CHANNEL_ID) {
       try {
           const payload = {
-            content: `🔔 **Nueva Solicitud de Evento** (ID: ${newEvent.id})`,
+            content: `🔔 **Nueva Solicitud** (ID: ${newEvent.id})`,
             embeds: [{
                 title: title,
-                description: `**Solicitante:** ${session.user.name}\n\n${description.substring(0, 200)}...`,
+                description: description,
                 color: 5793266,
-                // NOTA: He comentado la imagen para evitar errores en localhost.
-                // Cuando subas la web a internet, descomenta la siguiente línea y pon tu dominio real.
-                // image: { url: `https://tu-dominio-real.com${flyerUrl}` },
+                image: { url: `${process.env.NEXTAUTH_URL}${flyerUrl}` },
                 fields: [
-                    { name: "🕒 Fecha", value: new Date(eventDateStr).toLocaleString(), inline: true },
-                    { name: "🚗 Coches", value: needsCars ? "SÍ" : "NO", inline: true },
-                    { name: "📻 Radio", value: needsRadio ? "SÍ" : "NO", inline: true },
-                    { name: "🏗️ Mapeo", value: needsMapping ? "SÍ" : "NO", inline: true }
+                    { name:  "🕒 Fecha", value: new Date(eventDateStr).toLocaleString(), inline: true },
+                    { name: "🚗 Coches", value: needsCars ?  "SÍ" : "NO", inline: true },
+                    { name: "📻 Radio", value: needsRadio ?  "SÍ" : "NO", inline: true },
+                    { name: "🏗️ Mapeo", value: needsMapping ?  "SÍ" : "NO", inline: true }
                 ],
                 footer: { text: "Panel de Eventos - Staff Review" }
             }],
             components: [{
-                type: 1, // Action Row
+                type: 1,
                 components: [
-                    { type: 2, style: 3, label: "Aprobar", custom_id: `approve_${newEvent.id}`, emoji: { name: "✅", id: null } },
-                    { type: 2, style: 4, label: "Rechazar", custom_id: `reject_${newEvent.id}`, emoji: { name: "✖️", id: null } }
+                    { type: 2, style: 3, label: "Aprobar", custom_id: `approve_${newEvent.id}`, emoji: { name: "✅" } },
+                    { type:  2, style: 4, label: "Rechazar", custom_id: `reject_${newEvent.id}`, emoji: { name: "✖️" } }
                 ]
             }]
           };
 
-          const response = await fetch(`https://discord.com/api/v10/channels/${REVIEW_CHANNEL_ID}/messages`, {
+          await fetch(`https://discord.com/api/v10/channels/${REVIEW_CHANNEL_ID}/messages`, {
               method: 'POST',
               headers: {
                   'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
@@ -115,22 +115,11 @@ export async function requestEvent(formData: FormData) {
               },
               body: JSON.stringify(payload)
           });
-
-          // LEER RESPUESTA DE DISCORD
-          if (!response.ok) {
-              const errorText = await response.text();
-              console.error("❌ ERROR DISCORD API:", response.status, errorText);
-          } else {
-              console.log("✅ Mensaje enviado a Discord correctamente.");
-          }
-
       } catch (e) { 
-          console.error("❌ Error en el fetch:", e); 
+        console.error('Error sending to Discord:', e); 
       }
-  } else {
-      console.warn("⚠️ No se ha configurado el Token o el Canal en el .env");
   }
 
-  revalidatePath("/events/panel");
-  return { success: true };
+  revalidatePath("/events");
+  return { success:  true };
 }
