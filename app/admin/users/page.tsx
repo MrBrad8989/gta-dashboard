@@ -33,7 +33,7 @@ export default function UsersPage() {
     if (status === "authenticated") {
       fetch("/api/admin/users")
         .then(async (res) => {
-          if (!res. ok) {
+          if (!res.ok) {
             const text = await res.text();
             throw new Error(`Error ${res.status}: ${text}`);
           }
@@ -43,7 +43,7 @@ export default function UsersPage() {
           if (Array.isArray(data)) {
             setUsers(data);
             // Buscar el rol del usuario actual
-            const currentUser = data.find((u: User) => u.discordId === session. user?. discordId);
+            const currentUser = data.find((u: User) => u.discordId === session.user?.discordId);
             setCurrentUserRole(currentUser?.role || null);
           } else {
             setError("Formato de datos inválido");
