@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 // ✅ Exportar como "proxy" en lugar de "middleware"
-export async function proxy(request: NextRequest) {
-  const token = await getToken({ 
+export async function middleware(request: NextRequest) {
+    const token = await getToken({ 
     req: request, 
     secret: process. env. NEXTAUTH_SECRET 
   });
