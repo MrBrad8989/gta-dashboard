@@ -19,8 +19,7 @@ export default async function Home() {
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          minHeight: "100vh",
-          minWidth: "100vw"
+          minHeight: "100vh"
         }}
       >
         {/* Overlay con blur */}
