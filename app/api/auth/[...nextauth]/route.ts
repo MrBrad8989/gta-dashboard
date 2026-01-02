@@ -23,11 +23,25 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, trigger }) {
       if (account && profile) {
         token.id = profile.id;
         token.discordId = profile.id;
       }
+
+      // ✅ CRÍTICO: Obtener el rol del usuario de la base de datos
+      if (token.discordId) {
+        const dbUser = await prisma.user.findUnique({
+          where: { discordId: token.discordId as string },
+          select: { role: true, id: true },
+        });
+
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.userId = dbUser.id;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -80,7 +94,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/", // ✅ Redirigir a home si falla
-    error: "/",  // ✅ Redirigir a home en caso de error
+    error: "/", // ✅ Redirigir a home en caso de error
   },
   secret: process.env.NEXTAUTH_SECRET, // ✅ CRÍTICO
 };
