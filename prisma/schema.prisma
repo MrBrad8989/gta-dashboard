@@ -113,19 +113,19 @@ model Event {
   
   // Datos Básicos
   title           String
-  description     String   @db.Text // Descripción larga
-  eventDate       DateTime // Fecha y hora del evento
-  flyerUrl        String   // Ruta del archivo subido
+  description     String   @db.Text
+  eventDate       DateTime
+  flyerUrl        String
+  
+  // OJO: Hemos quitado gtawLink porque ya no lo pides en el formulario nuevo.
   
   // Requisitos Técnicos
   needsCars       Boolean  @default(false)
   carsDesc        String?  @db.Text
-  
   needsRadio      Boolean  @default(false)
-  
   needsMapping    Boolean  @default(false)
   mappingDesc     String?  @db.Text
-  mappingFiles    String?  @db.Text // Guardaremos las rutas de las fotos separadas por comas
+  mappingFiles    String?  @db.Text
   
   // Gestión
   status          EventStatus @default(PENDING)
@@ -136,6 +136,11 @@ model Event {
   creator         User     @relation(fields: [creatorId], references: [id])
   
   createdAt       DateTime @default(now())
+
+  subscribers      String[]  // IDs de Discord de interesados
+  publicMessageId  String?   // ID del mensaje en Discord
+  startNotified    Boolean   @default(false)
+  ticketChannelId  String?   // ID del canal de ticket creado
 }
 
 enum EventStatus {
