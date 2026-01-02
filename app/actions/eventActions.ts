@@ -64,9 +64,14 @@ export async function requestEvent(formData: FormData) {
       needsRadio,
       needsMapping,
       mappingDesc: needsMapping ? mappingDesc : null,
-      mappingFiles: mappingUrls.join(","),
+      mappingFiles: mappingUrls.length > 0 ? mappingUrls.join(",") : null,
       status: 'PENDING',
-      creatorId: parseInt(session.user.id)
+      creatorId: parseInt(session.user.id),
+      subscribers: [],
+      publicMessageId: null,
+      startNotified: false,
+      ticketChannelId: null,
+      rejectionReason: null
     }
   });
 
