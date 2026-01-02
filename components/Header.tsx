@@ -16,6 +16,8 @@ export default function Header() {
           src="/logo-gta-world.png" 
           alt="GTA World" 
           className="h-12 sm:h-16 w-auto"
+          width="200"
+          height="100"
         />
       </div>
     </header>
