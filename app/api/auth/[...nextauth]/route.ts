@@ -31,28 +31,28 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (token. discordId) {
-        const dbUser = await prisma.user. findUnique({
-          where:  { discordId: token.discordId as string },
+      if (token.discordId) {
+        const dbUser = await prisma.user.findUnique({
+          where: { discordId: token.discordId as string },
         });
 
         if (dbUser) {
-          session.user. id = dbUser.id. toString();
-          session.user. role = dbUser.role;
+          session.user.id = dbUser.id.toString();
+          session.user.role = dbUser.role;
           session.user.discordId = dbUser.discordId;
         }
       }
       return session;
     },
     async signIn({ user, account, profile }) {
-      if (! profile) return false;
+      if (!profile) return false;
 
       try {
         const existingUser = await prisma.user.findUnique({
           where: { discordId: profile.id as string },
         });
 
-        if (! existingUser) {
+        if (!existingUser) {
           await prisma.user.create({
             data: {
               discordId: profile.id as string,
@@ -62,7 +62,7 @@ export const authOptions: NextAuthOptions = {
             },
           });
         } else {
-          await prisma. user.update({
+          await prisma.user.update({
             where: { discordId: profile.id as string },
             data: { lastLogin: new Date() },
           });
@@ -79,7 +79,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   pages: {
-    signIn:  "/", // ✅ Redirigir a home si falla
+    signIn: "/", // ✅ Redirigir a home si falla
     error: "/",  // ✅ Redirigir a home en caso de error
   },
   secret: process.env.NEXTAUTH_SECRET, // ✅ CRÍTICO

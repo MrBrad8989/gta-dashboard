@@ -2,17 +2,16 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-// ✅ Exportar como "proxy" en lugar de "middleware"
 export async function middleware(request: NextRequest) {
-    const token = await getToken({ 
+  const token = await getToken({ 
     req: request, 
-    secret: process. env. NEXTAUTH_SECRET 
+    secret: process.env.NEXTAUTH_SECRET 
   });
 
   // Rutas protegidas
   const protectedPaths = ['/admin', '/dashboard', '/events/create', '/embeds'];
   const isProtectedPath = protectedPaths.some(path => 
-    request. nextUrl.pathname.startsWith(path)
+    request.nextUrl.pathname.startsWith(path)
   );
 
   // Redirigir si no está autenticado
@@ -22,22 +21,22 @@ export async function middleware(request: NextRequest) {
   }
 
   // Verificar permisos de admin
-  if (request.nextUrl.pathname. startsWith('/admin')) {
+  if (request.nextUrl.pathname.startsWith('/admin')) {
     const userRole = token?.role as string;
-    if (!['FOUNDER', 'ADMIN']. includes(userRole || '')) {
-      const url = new URL('/', request. url);
-      return NextResponse. redirect(url);
+    if (!['FOUNDER', 'ADMIN'].includes(userRole || '')) {
+      const url = new URL('/', request.url);
+      return NextResponse.redirect(url);
     }
   }
 
-  return NextResponse. next();
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
     '/admin/:path*',
     '/dashboard/:path*',
-    '/events/create',
-    '/embeds',
-  ],
+    '/events/create/:path*',
+    '/embeds/:path*'
+  ]
 };
