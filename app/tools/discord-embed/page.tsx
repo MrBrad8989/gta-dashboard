@@ -21,7 +21,7 @@ type EmbedData = {
   fields: Array<{
     name: string;
     value: string;
-    inline:  boolean;
+    inline: boolean;
   }>;
   timestamp: boolean;
 };
@@ -34,11 +34,11 @@ type Template = {
   createdAt: string;
 };
 
-const DEFAULT_EMBED:  EmbedData = {
+const DEFAULT_EMBED: EmbedData = {
   title: "",
   description: "",
   color: "#5865F2",
-  author:  {
+  author: {
     name: "",
     icon_url: "",
   },
@@ -59,7 +59,7 @@ const PRESET_TEMPLATES: Template[] = [
     description: "Plantilla para anuncios importantes",
     createdAt: new Date().toISOString(),
     data: {
-      ... DEFAULT_EMBED,
+      ...DEFAULT_EMBED,
       title: "📢 Anuncio Importante",
       description: "Descripción del anuncio.. .",
       color: "#FFA500",
@@ -68,7 +68,7 @@ const PRESET_TEMPLATES: Template[] = [
     },
   },
   {
-    id:  "event",
+    id: "event",
     name: "🎉 Evento",
     description: "Plantilla para eventos",
     createdAt: new Date().toISOString(),
@@ -89,18 +89,33 @@ const PRESET_TEMPLATES: Template[] = [
     id: "rules",
     name: "📜 Reglas",
     description: "Plantilla para normativas",
-    createdAt:  new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     data: {
-      ... DEFAULT_EMBED,
+      ...DEFAULT_EMBED,
       title: "📜 Normas del Servidor",
       description: "Lee atentamente las siguientes reglas:",
       color: "#ED4245",
       fields: [
-        { name: "1️⃣ Respeto", value: "Trata a todos con respeto", inline:  false },
-        { name: "2️⃣ No Spam", value: "Evita el spam en los canales", inline: false },
-        { name: "3️⃣ Contenido Apropiado", value:  "Mantén el contenido apropiado", inline: false },
+        {
+          name: "1️⃣ Respeto",
+          value: "Trata a todos con respeto",
+          inline: false,
+        },
+        {
+          name: "2️⃣ No Spam",
+          value: "Evita el spam en los canales",
+          inline: false,
+        },
+        {
+          name: "3️⃣ Contenido Apropiado",
+          value: "Mantén el contenido apropiado",
+          inline: false,
+        },
       ],
-      footer: { text: "El incumplimiento resultará en sanciones", icon_url: "" },
+      footer: {
+        text: "El incumplimiento resultará en sanciones",
+        icon_url: "",
+      },
     },
   },
   {
@@ -111,7 +126,7 @@ const PRESET_TEMPLATES: Template[] = [
     data: {
       ...DEFAULT_EMBED,
       title: "👋 ¡Bienvenido al Servidor!",
-      description:  "Nos alegra tenerte aquí. Lee las reglas y diviértete.",
+      description: "Nos alegra tenerte aquí.  Lee las reglas y diviértete.",
       color: "#57F287",
       thumbnail: "",
       fields: [
@@ -128,10 +143,15 @@ export default function EmbedsPage() {
   const router = useRouter();
 
   const [embed, setEmbed] = useState<EmbedData>(DEFAULT_EMBED);
-  const [channelId, setChannelId] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookUsername, setWebhookUsername] = useState("Dashboard Bot");
+  const [webhookAvatarUrl, setWebhookAvatarUrl] = useState("");
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   // Gestión de plantillas
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -159,47 +179,85 @@ export default function EmbedsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    // Cargar webhook guardado
+    const savedWebhook = localStorage.getItem("webhook_config");
+    if (savedWebhook) {
+      try {
+        const config = JSON.parse(savedWebhook);
+        setWebhookUrl(config.url || "");
+        setWebhookUsername(config.username || "Dashboard Bot");
+        setWebhookAvatarUrl(config.avatarUrl || "");
+      } catch (e) {
+        console.error("Error loading webhook config:", e);
+      }
+    }
+  }, []);
+
+  // Guardar webhook automáticamente
+  useEffect(() => {
+    if (webhookUrl) {
+      localStorage.setItem(
+        "webhook_config",
+        JSON.stringify({
+          url: webhookUrl,
+          username: webhookUsername,
+          avatarUrl: webhookAvatarUrl,
+        })
+      );
+    }
+  }, [webhookUrl, webhookUsername, webhookAvatarUrl]);
+
   const updateEmbed = (field: string, value: any) => {
     setEmbed((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateNestedField = (parent: "author" | "footer", field: string, value: string) => {
+  const updateNestedField = (
+    parent: "author" | "footer",
+    field: string,
+    value: string
+  ) => {
     setEmbed((prev) => ({
       ...prev,
-      [parent]: { ...prev[parent], [field]:  value },
+      [parent]: { ...prev[parent], [field]: value },
     }));
   };
 
   const addField = () => {
     setEmbed((prev) => ({
       ...prev,
-      fields: [...prev. fields, { name: "", value:  "", inline: false }],
+      fields: [...prev.fields, { name: "", value: "", inline: false }],
     }));
   };
 
   const updateField = (index: number, field: string, value: any) => {
     setEmbed((prev) => ({
       ...prev,
-      fields: prev.fields.map((f, i) => (i === index ? { ...f, [field]: value } : f)),
+      fields: prev.fields.map((f, i) =>
+        i === index ? { ...f, [field]: value } : f
+      ),
     }));
   };
 
   const removeField = (index: number) => {
     setEmbed((prev) => ({
       ...prev,
-      fields: prev.fields. filter((_, i) => i !== index),
+      fields: prev.fields.filter((_, i) => i !== index),
     }));
   };
 
   const loadTemplate = (template: Template) => {
     setEmbed(template.data);
     setShowTemplates(false);
-    setResult({ success: true, message: `Plantilla "${template.name}" cargada` });
+    setResult({
+      success: true,
+      message: `Plantilla "${template.name}" cargada`,
+    });
     setTimeout(() => setResult(null), 3000);
   };
 
   const saveTemplate = () => {
-    if (!templateName. trim()) {
+    if (!templateName.trim()) {
       alert("Por favor, ingresa un nombre para la plantilla");
       return;
     }
@@ -235,8 +293,12 @@ export default function EmbedsPage() {
 
   const exportTemplate = (template: Template) => {
     const dataStr = JSON.stringify(template, null, 2);
-    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-    const exportFileDefaultName = `${template.name. replace(/[^a-z0-9]/gi, "_")}.json`;
+    const dataUri =
+      "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+    const exportFileDefaultName = `${template.name.replace(
+      /[^a-z0-9]/gi,
+      "_"
+    )}.json`;
 
     const linkElement = document.createElement("a");
     linkElement.setAttribute("href", dataUri);
@@ -248,16 +310,19 @@ export default function EmbedsPage() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
-    input.onchange = (e:  any) => {
+    input.onchange = (e: any) => {
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onload = (event:  any) => {
+      reader.onload = (event: any) => {
         try {
           const imported = JSON.parse(event.target.result);
           const updated = [...templates, imported];
           setTemplates(updated);
           localStorage.setItem("embed_templates", JSON.stringify(updated));
-          setResult({ success: true, message: "Plantilla importada exitosamente" });
+          setResult({
+            success: true,
+            message: "Plantilla importada exitosamente",
+          });
           setTimeout(() => setResult(null), 3000);
         } catch (error) {
           alert("Error al importar la plantilla.  Verifica el archivo.");
@@ -278,8 +343,16 @@ export default function EmbedsPage() {
   };
 
   const sendEmbed = async () => {
-    if (!channelId.trim()) {
-      setResult({ success: false, message:  "Por favor, ingresa un ID de canal" });
+    if (!webhookUrl.trim()) {
+      setResult({
+        success: false,
+        message: "Por favor, ingresa una URL de webhook",
+      });
+      return;
+    }
+
+    if (!webhookUrl.startsWith("https://discord.com/api/webhooks/")) {
+      setResult({ success: false, message: "URL de webhook inválida" });
       return;
     }
 
@@ -287,36 +360,44 @@ export default function EmbedsPage() {
     setResult(null);
 
     try {
+      const payload = {
+        webhookUrl,
+        username: webhookUsername.trim() || "Dashboard Bot", // ✅ Siempre enviar un valor
+        avatarUrl: webhookAvatarUrl.trim() || null, // ✅ null en lugar de undefined
+        content: content.trim() || null,
+        embed: {
+          title: embed.title.trim() || undefined,
+          description: embed.description.trim() || undefined,
+          color: parseInt(embed.color.replace("#", ""), 16),
+          author:
+            embed.author.name.trim() || embed.author.icon_url.trim()
+              ? {
+                  name: embed.author.name.trim() || undefined,
+                  icon_url: embed.author.icon_url.trim() || undefined,
+                }
+              : undefined,
+          footer:
+            embed.footer.text.trim() || embed.footer.icon_url.trim()
+              ? {
+                  text: embed.footer.text.trim() || undefined,
+                  icon_url: embed.footer.icon_url.trim() || undefined,
+                }
+              : undefined,
+          thumbnail: embed.thumbnail.trim()
+            ? { url: embed.thumbnail.trim() }
+            : undefined,
+          image: embed.image.trim() ? { url: embed.image.trim() } : undefined,
+          fields: embed.fields.filter((f) => f.name.trim() && f.value.trim()),
+          timestamp: embed.timestamp ? new Date().toISOString() : undefined,
+        },
+      };
+
+      console.log("📤 Enviando payload:", payload); // ✅ Debug
+
       const res = await fetch("/api/discord/send-embed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channelId,
-          content:  content || undefined,
-          embed: {
-            title: embed.title || undefined,
-            description: embed. description || undefined,
-            color:  parseInt(embed.color. replace("#", ""), 16),
-            author: 
-              embed.author. name || embed.author.icon_url
-                ? {
-                    name: embed.author.name || undefined,
-                    icon_url:  embed.author.icon_url || undefined,
-                  }
-                : undefined,
-            footer: 
-              embed.footer.text || embed.footer.icon_url
-                ? {
-                    text: embed.footer.text || undefined,
-                    icon_url: embed. footer.icon_url || undefined,
-                  }
-                : undefined,
-            thumbnail: embed.thumbnail ?  { url: embed.thumbnail } : undefined,
-            image: embed.image ? { url: embed.image } : undefined,
-            fields: embed.fields. filter((f) => f.name && f.value),
-            timestamp: embed. timestamp ?  new Date().toISOString() : undefined,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -327,7 +408,8 @@ export default function EmbedsPage() {
         setResult({ success: false, message: `❌ Error: ${data.error}` });
       }
     } catch (error) {
-      setResult({ success: false, message:  "❌ Error al enviar el embed" });
+      console.error("Error al enviar:", error);
+      setResult({ success: false, message: "❌ Error al enviar el embed" });
     } finally {
       setSending(false);
     }
@@ -351,7 +433,9 @@ export default function EmbedsPage() {
               <span className="text-3xl">✨</span>
               Editor de Embeds
             </h1>
-            <p className="text-gray-400 text-sm mt-1">Crea embeds profesionales para Discord</p>
+            <p className="text-gray-400 text-sm mt-1">
+              Crea embeds profesionales para Discord
+            </p>
           </div>
           <div className="flex gap-3">
             <button
@@ -376,7 +460,7 @@ export default function EmbedsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg: grid-cols-2 gap-6">
+      <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Editor */}
         <div className="space-y-6">
           {/* Información básica */}
@@ -396,11 +480,15 @@ export default function EmbedsPage() {
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   maxLength={256}
                 />
-                <div className="text-xs text-gray-400 mt-1">{embed.title.length}/256</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {embed.title.length}/256
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Descripción</label>
+                <label className="block text-sm font-medium mb-2">
+                  Descripción
+                </label>
                 <textarea
                   value={embed.description}
                   onChange={(e) => updateEmbed("description", e.target.value)}
@@ -409,7 +497,9 @@ export default function EmbedsPage() {
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
                   maxLength={4096}
                 />
-                <div className="text-xs text-gray-400 mt-1">{embed.description.length}/4096</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {embed.description.length}/4096
+                </div>
               </div>
 
               <div>
@@ -418,12 +508,12 @@ export default function EmbedsPage() {
                   <input
                     type="color"
                     value={embed.color}
-                    onChange={(e) => updateEmbed("color", e. target.value)}
+                    onChange={(e) => updateEmbed("color", e.target.value)}
                     className="h-12 w-20 rounded-lg cursor-pointer"
                   />
                   <input
                     type="text"
-                    value={embed. color}
+                    value={embed.color}
                     onChange={(e) => updateEmbed("color", e.target.value)}
                     placeholder="#5865F2"
                     className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
@@ -442,15 +532,19 @@ export default function EmbedsPage() {
               <input
                 type="text"
                 value={embed.author.name}
-                onChange={(e) => updateNestedField("author", "name", e.target.value)}
+                onChange={(e) =>
+                  updateNestedField("author", "name", e.target.value)
+                }
                 placeholder="Nombre del autor"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 maxLength={256}
               />
               <input
                 type="text"
-                value={embed. author.icon_url}
-                onChange={(e) => updateNestedField("author", "icon_url", e.target.value)}
+                value={embed.author.icon_url}
+                onChange={(e) =>
+                  updateNestedField("author", "icon_url", e.target.value)
+                }
                 placeholder="URL del icono del autor"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
@@ -464,7 +558,9 @@ export default function EmbedsPage() {
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Thumbnail (Pequeña)</label>
+                <label className="block text-sm font-medium mb-2">
+                  Thumbnail (Pequeña)
+                </label>
                 <input
                   type="text"
                   value={embed.thumbnail}
@@ -474,13 +570,15 @@ export default function EmbedsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Imagen Principal (Grande)</label>
+                <label className="block text-sm font-medium mb-2">
+                  Imagen Principal (Grande)
+                </label>
                 <input
                   type="text"
                   value={embed.image}
                   onChange={(e) => updateEmbed("image", e.target.value)}
                   placeholder="https://ejemplo.com/imagen.png"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus: ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -502,10 +600,15 @@ export default function EmbedsPage() {
             </div>
 
             <div className="space-y-4">
-              {embed.fields. map((field, index) => (
-                <div key={index} className="bg-gray-700 rounded-lg p-4 space-y-3">
+              {embed.fields.map((field, index) => (
+                <div
+                  key={index}
+                  className="bg-gray-700 rounded-lg p-4 space-y-3"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-400">Campo {index + 1}</span>
+                    <span className="text-sm font-semibold text-gray-400">
+                      Campo {index + 1}
+                    </span>
                     <button
                       onClick={() => removeField(index)}
                       className="text-red-400 hover:text-red-300 font-semibold"
@@ -516,14 +619,16 @@ export default function EmbedsPage() {
                   <input
                     type="text"
                     value={field.name}
-                    onChange={(e) => updateField(index, "name", e.target. value)}
+                    onChange={(e) => updateField(index, "name", e.target.value)}
                     placeholder="Nombre del campo"
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:ring-2 focus: ring-blue-500 focus: outline-none"
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     maxLength={256}
                   />
                   <textarea
                     value={field.value}
-                    onChange={(e) => updateField(index, "value", e.target.value)}
+                    onChange={(e) =>
+                      updateField(index, "value", e.target.value)
+                    }
                     placeholder="Valor del campo"
                     rows={2}
                     className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
@@ -533,7 +638,9 @@ export default function EmbedsPage() {
                     <input
                       type="checkbox"
                       checked={field.inline}
-                      onChange={(e) => updateField(index, "inline", e.target.checked)}
+                      onChange={(e) =>
+                        updateField(index, "inline", e.target.checked)
+                      }
                       className="w-4 h-4 rounded"
                     />
                     <span className="text-sm">En línea (inline)</span>
@@ -543,7 +650,7 @@ export default function EmbedsPage() {
 
               {embed.fields.length === 0 && (
                 <div className="text-center text-gray-400 py-8">
-                  No hay campos.  Haz clic en "Añadir Campo" para agregar uno.
+                  No hay campos. Haz clic en "Añadir Campo" para agregar uno.
                 </div>
               )}
             </div>
@@ -558,7 +665,9 @@ export default function EmbedsPage() {
               <input
                 type="text"
                 value={embed.footer.text}
-                onChange={(e) => updateNestedField("footer", "text", e.target.value)}
+                onChange={(e) =>
+                  updateNestedField("footer", "text", e.target.value)
+                }
                 placeholder="Texto del footer"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus: ring-blue-500 focus: outline-none"
                 maxLength={2048}
@@ -566,18 +675,22 @@ export default function EmbedsPage() {
               <input
                 type="text"
                 value={embed.footer.icon_url}
-                onChange={(e) => updateNestedField("footer", "icon_url", e. target.value)}
+                onChange={(e) =>
+                  updateNestedField("footer", "icon_url", e.target.value)
+                }
                 placeholder="URL del icono del footer"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus: ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={embed.timestamp}
-                  onChange={(e) => updateEmbed("timestamp", e.target. checked)}
+                  onChange={(e) => updateEmbed("timestamp", e.target.checked)}
                   className="w-4 h-4 rounded"
                 />
-                <span className="text-sm">Mostrar timestamp (fecha y hora)</span>
+                <span className="text-sm">
+                  Mostrar timestamp (fecha y hora)
+                </span>
               </label>
             </div>
           </div>
@@ -587,19 +700,108 @@ export default function EmbedsPage() {
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <span>🚀</span> Enviar a Discord
             </h2>
+
+            {/* Tutorial para crear webhook */}
+            <div className="bg-blue-900 border border-blue-700 rounded-lg p-4 mb-4">
+              <h3 className="font-bold mb-2 flex items-center gap-2">
+                <span>ℹ️</span> ¿Cómo obtener una URL de Webhook?
+              </h3>
+              <ol className="text-sm space-y-1 list-decimal list-inside text-gray-200">
+                <li>Ve al canal donde quieres enviar el embed</li>
+                <li>
+                  Click derecho → <strong>Editar Canal</strong>
+                </li>
+                <li>
+                  Ve a la pestaña <strong>Integraciones</strong>
+                </li>
+                <li>
+                  Click en <strong>Ver Webhooks</strong> →{" "}
+                  <strong>Nuevo Webhook</strong>
+                </li>
+                <li>Dale un nombre (ej: "Dashboard Bot")</li>
+                <li>
+                  Click en <strong>Copiar URL del Webhook</strong>
+                </li>
+                <li>Pégala abajo 👇</li>
+              </ol>
+            </div>
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">ID del Canal</label>
+                <label className="block text-sm font-medium mb-2">
+                  URL del Webhook *
+                </label>
                 <input
                   type="text"
-                  value={channelId}
-                  onChange={(e) => setChannelId(e.target. value)}
-                  placeholder="123456789012345678"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://discord.com/api/webhooks/123456789/abcdefg..."
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  Haz clic derecho en el canal → Copiar ID
-                </p>
+                {webhookUrl &&
+                  !webhookUrl.startsWith(
+                    "https://discord.com/api/webhooks/"
+                  ) && (
+                    <p className="text-xs text-red-400 mt-1">
+                      ⚠️ La URL debe empezar con:
+                      https://discord.com/api/webhooks/
+                    </p>
+                  )}
+              </div>
+
+              {/* Personalización del Webhook */}
+              <div className="bg-gray-700 rounded-lg p-4 space-y-4">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <span>🎭</span> Personalización del Bot
+                </h3>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Nombre del Bot
+                  </label>
+                  <input
+                    type="text"
+                    value={webhookUsername}
+                    onChange={(e) => setWebhookUsername(e.target.value)}
+                    placeholder="Dashboard Bot"
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    maxLength={80}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Este será el nombre que aparecerá como autor del mensaje
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Avatar del Bot (URL)
+                  </label>
+                  <input
+                    type="text"
+                    value={webhookAvatarUrl}
+                    onChange={(e) => setWebhookAvatarUrl(e.target.value)}
+                    placeholder="https://ejemplo.com/avatar.png"
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    URL de la imagen que usará como avatar (opcional)
+                  </p>
+
+                  {/* Preview del avatar */}
+                  {webhookAvatarUrl && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Preview:</span>
+                      <img
+                        src={webhookAvatarUrl}
+                        alt="Avatar preview"
+                        className="w-8 h-8 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -608,7 +810,7 @@ export default function EmbedsPage() {
                 </label>
                 <textarea
                   value={content}
-                  onChange={(e) => setContent(e.target. value)}
+                  onChange={(e) => setContent(e.target.value)}
                   placeholder="Texto que acompaña al embed..."
                   rows={2}
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
@@ -618,7 +820,11 @@ export default function EmbedsPage() {
 
               <button
                 onClick={sendEmbed}
-                disabled={sending || ! channelId}
+                disabled={
+                  sending ||
+                  !webhookUrl ||
+                  !webhookUrl.startsWith("https://discord.com/api/webhooks/")
+                }
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2"
               >
                 {sending ? (
@@ -658,11 +864,7 @@ export default function EmbedsPage() {
 
             <div className="bg-gray-750 rounded-lg p-4">
               {/* Content message */}
-              {content && (
-                <div className="mb-3 text-gray-200">
-                  {content}
-                </div>
-              )}
+              {content && <div className="mb-3 text-gray-200">{content}</div>}
 
               {/* Embed */}
               <div
@@ -674,25 +876,32 @@ export default function EmbedsPage() {
               >
                 <div className="p-4 space-y-2">
                   {/* Author */}
-                  {(embed.author.name || embed. author.icon_url) && (
+                  {(embed.author.name || embed.author.icon_url) && (
                     <div className="flex items-center gap-2 mb-2">
                       {embed.author.icon_url && (
                         <img
                           src={embed.author.icon_url}
                           alt="Author"
                           className="w-6 h-6 rounded-full"
-                          onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                          onError={(e) =>
+                            ((e.target as HTMLImageElement).style.display =
+                              "none")
+                          }
                         />
                       )}
                       {embed.author.name && (
-                        <span className="font-semibold text-sm">{embed.author.name}</span>
+                        <span className="font-semibold text-sm">
+                          {embed.author.name}
+                        </span>
                       )}
                     </div>
                   )}
 
                   {/* Title */}
                   {embed.title && (
-                    <div className="font-bold text-lg text-blue-400">{embed.title}</div>
+                    <div className="font-bold text-lg text-blue-400">
+                      {embed.title}
+                    </div>
                   )}
 
                   {/* Description */}
@@ -703,14 +912,18 @@ export default function EmbedsPage() {
                   )}
 
                   {/* Fields */}
-                  {embed. fields.length > 0 && (
+                  {embed.fields.length > 0 && (
                     <div className="grid grid-cols-1 gap-2 mt-3">
                       {embed.fields.map((field, index) => (
                         <div
                           key={index}
-                          className={field.inline ? "inline-block w-1/3 pr-2" : ""}
+                          className={
+                            field.inline ? "inline-block w-1/3 pr-2" : ""
+                          }
                         >
-                          <div className="font-semibold text-sm">{field.name || "Campo"}</div>
+                          <div className="font-semibold text-sm">
+                            {field.name || "Campo"}
+                          </div>
                           <div className="text-sm text-gray-300">
                             {field.value || "Valor"}
                           </div>
@@ -726,7 +939,10 @@ export default function EmbedsPage() {
                         src={embed.thumbnail}
                         alt="Thumbnail"
                         className="rounded max-w-[80px] max-h-[80px]"
-                        onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                        onError={(e) =>
+                          ((e.target as HTMLImageElement).style.display =
+                            "none")
+                        }
                       />
                     </div>
                   )}
@@ -737,24 +953,31 @@ export default function EmbedsPage() {
                       src={embed.image}
                       alt="Embed"
                       className="rounded mt-3 max-w-full"
-                      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                      onError={(e) =>
+                        ((e.target as HTMLImageElement).style.display = "none")
+                      }
                     />
                   )}
 
                   {/* Footer */}
-                  {(embed.footer.text || embed. footer.icon_url || embed.timestamp) && (
+                  {(embed.footer.text ||
+                    embed.footer.icon_url ||
+                    embed.timestamp) && (
                     <div className="flex items-center gap-2 mt-3 text-xs text-gray-400">
                       {embed.footer.icon_url && (
                         <img
                           src={embed.footer.icon_url}
                           alt="Footer"
                           className="w-5 h-5 rounded-full"
-                          onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                          onError={(e) =>
+                            ((e.target as HTMLImageElement).style.display =
+                              "none")
+                          }
                         />
                       )}
                       <span>
-                        {embed.footer. text}
-                        {embed.footer. text && embed.timestamp && " • "}
+                        {embed.footer.text}
+                        {embed.footer.text && embed.timestamp && " • "}
                         {embed.timestamp && new Date().toLocaleString("es-ES")}
                       </span>
                     </div>
@@ -797,7 +1020,7 @@ export default function EmbedsPage() {
                   onClick={() => setActiveTab("custom")}
                   className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
                     activeTab === "custom"
-                      ?  "bg-blue-600 text-white"
+                      ? "bg-blue-600 text-white"
                       : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                   }`}
                 >
@@ -827,10 +1050,14 @@ export default function EmbedsPage() {
                           style={{ backgroundColor: template.data.color }}
                         />
                       </div>
-                      <p className="text-sm text-gray-300 mb-3">{template.description}</p>
+                      <p className="text-sm text-gray-300 mb-3">
+                        {template.description}
+                      </p>
                       <div className="text-xs text-gray-400">
-                        {template.data. fields.length} campos •{" "}
-                        {template.data.timestamp ?  "Con timestamp" : "Sin timestamp"}
+                        {template.data.fields.length} campos •{" "}
+                        {template.data.timestamp
+                          ? "Con timestamp"
+                          : "Sin timestamp"}
                       </div>
                     </div>
                   ))}
@@ -844,7 +1071,9 @@ export default function EmbedsPage() {
                     <div className="text-center py-12 text-gray-400">
                       <div className="text-6xl mb-4">📋</div>
                       <p className="text-lg">No tienes plantillas guardadas</p>
-                      <p className="text-sm mt-2">Crea un embed y guárdalo como plantilla</p>
+                      <p className="text-sm mt-2">
+                        Crea un embed y guárdalo como plantilla
+                      </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -854,17 +1083,24 @@ export default function EmbedsPage() {
                           className="bg-gray-700 rounded-lg p-4 hover:bg-gray-650 transition-colors"
                         >
                           <div className="flex items-start justify-between mb-2">
-                            <h3 className="font-bold text-lg">{template.name}</h3>
+                            <h3 className="font-bold text-lg">
+                              {template.name}
+                            </h3>
                             <span
                               className="w-4 h-4 rounded-full"
-                              style={{ backgroundColor:  template.data.color }}
+                              style={{ backgroundColor: template.data.color }}
                             />
                           </div>
                           {template.description && (
-                            <p className="text-sm text-gray-300 mb-3">{template.description}</p>
+                            <p className="text-sm text-gray-300 mb-3">
+                              {template.description}
+                            </p>
                           )}
                           <div className="text-xs text-gray-400 mb-3">
-                            Creado:  {new Date(template.createdAt).toLocaleDateString("es-ES")}
+                            Creado:{" "}
+                            {new Date(template.createdAt).toLocaleDateString(
+                              "es-ES"
+                            )}
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -906,7 +1142,9 @@ export default function EmbedsPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Nombre *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Nombre *
+                </label>
                 <input
                   type="text"
                   value={templateName}
@@ -917,10 +1155,12 @@ export default function EmbedsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Descripción (Opcional)</label>
+                <label className="block text-sm font-medium mb-2">
+                  Descripción (Opcional)
+                </label>
                 <textarea
                   value={templateDescription}
-                  onChange={(e) => setTemplateDescription(e. target.value)}
+                  onChange={(e) => setTemplateDescription(e.target.value)}
                   placeholder="Descripción de la plantilla..."
                   rows={3}
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
