@@ -35,6 +35,14 @@ enum EventStatus {
     REJECTED = 'REJECTED'
 }
 
+// Helper function to safely parse subscribers JSON
+function parseSubscribers(subscribers: unknown): string[] {
+    if (Array.isArray(subscribers)) {
+        return subscribers.filter((s): s is string => typeof s === 'string');
+    }
+    return [];
+}
+
 // --- CONFIGURACIÓN HORARIA ---
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -350,8 +358,8 @@ client.on('interactionCreate', async (interaction: Interaction) => {
         // ME INTERESA
         if (action === 'interested' && evt) {
             const userId = interaction.user.id;
-            // Handle subscribers as JSON/array
-            const subscribers = Array.isArray(evt.subscribers) ? evt.subscribers : [];
+            // Handle subscribers as JSON/array with type safety
+            const subscribers = parseSubscribers(evt.subscribers);
             
             if (!subscribers.includes(userId)) {
                 // Update event with new subscriber
@@ -376,7 +384,7 @@ client.on('interactionCreate', async (interaction: Interaction) => {
 
                     // Get updated subscriber count
                     const updatedEvent = await prisma.event.findUnique({ where: { id: eventId } });
-                    const updatedSubscribers = Array.isArray(updatedEvent?.subscribers) ? updatedEvent.subscribers : [];
+                    const updatedSubscribers = parseSubscribers(updatedEvent?.subscribers);
                     const count = updatedSubscribers.length;
                     const fieldIndex = newEmbed.data.fields?.findIndex(f => f.name.includes('Interesados'));
                     if (fieldIndex !== undefined && fieldIndex !== -1 && newEmbed.data.fields) {
@@ -443,7 +451,7 @@ setInterval(async () => {
         if (diffSeconds <= 60 && diffSeconds > -120) {
             const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS || '') as TextChannel | undefined;
             if (publicChannel) {
-                const subscribers = Array.isArray(evt.subscribers) ? evt.subscribers : [];
+                const subscribers = parseSubscribers(evt.subscribers);
                 const startEmbed = new EmbedBuilder()
                     .setTitle(`🔔 ¡El Evento Comienza YA!: ${evt.title}`)
                     .setDescription(`El evento está empezando ahora mismo.\n\n**Interesados:** ${subscribers.length} personas.`)
