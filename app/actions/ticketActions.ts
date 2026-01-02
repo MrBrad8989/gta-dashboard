@@ -5,7 +5,11 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { sendTicketNotification } from "@/lib/discordNotifications"; 
+import { sendTicketNotification } from "@/lib/discordNotifications";
+
+// Constants
+const ATTACHMENTS_FALLBACK_MESSAGE = "(envió archivos adjuntos)";
+const INITIAL_ATTACHMENTS_MESSAGE = "📎 Archivos adjuntos iniciales"; 
 
 // 1. CREAR TICKET O REPORTE
 export async function createTicket(formData: FormData) {
@@ -59,7 +63,7 @@ export async function createTicket(formData: FormData) {
   if (attachments.length > 0) {
     await prisma.ticketMessage.create({
       data: {
-        content: "📎 Archivos adjuntos iniciales",
+        content: INITIAL_ATTACHMENTS_MESSAGE,
         attachments,
         ticketId: ticket.id,
         authorId: parseInt(session.user.id),
@@ -126,7 +130,7 @@ export async function sendMessage(ticketId: number, formData: FormData) {
   // NOTIFICAR según quién responde
   if (isStaff) {
     // Staff responde → Notificar al usuario creador
-    const previewText = content.trim() || '(envió archivos adjuntos)';
+    const previewText = content.trim() || ATTACHMENTS_FALLBACK_MESSAGE;
     await sendTicketNotification({
       userId: ticket.creatorId,
       ticketId,
@@ -137,7 +141,7 @@ export async function sendMessage(ticketId: number, formData: FormData) {
     });
   } else if (!isStaff && ticket.assignedToId) {
     // Usuario responde → Notificar al staff asignado
-    const previewText = content.trim() || '(envió archivos adjuntos)';
+    const previewText = content.trim() || ATTACHMENTS_FALLBACK_MESSAGE;
     await sendTicketNotification({
       userId: ticket.assignedToId,
       ticketId,

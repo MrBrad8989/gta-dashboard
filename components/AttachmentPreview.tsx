@@ -31,6 +31,7 @@ export default function AttachmentPreview({ url }: { url: string }) {
       return (
         <iframe
           src={embedUrl}
+          title="YouTube video player"
           className="w-full aspect-video rounded-lg border border-gray-700"
           allowFullScreen
         />

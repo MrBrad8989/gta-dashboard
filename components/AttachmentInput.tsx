@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { FaImage, FaVideo, FaLink, FaTimes } from 'react-icons/fa';
+import { FaImage, FaVideo, FaLink, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 
 export default function AttachmentInput({ 
   attachments, 
@@ -11,6 +11,7 @@ export default function AttachmentInput({
   onChange: (urls: string[]) => void 
 }) {
   const [urlInput, setUrlInput] = useState('');
+  const [brokenUrls, setBrokenUrls] = useState<Set<string>>(new Set());
 
   const addUrl = () => {
     if (!urlInput.trim()) return;
@@ -24,10 +25,27 @@ export default function AttachmentInput({
   };
 
   const removeUrl = (index: number) => {
+    const urlToRemove = attachments[index];
     onChange(attachments.filter((_, i) => i !== index));
+    // Remove from broken URLs set if it was there
+    if (brokenUrls.has(urlToRemove)) {
+      const newBrokenUrls = new Set(brokenUrls);
+      newBrokenUrls.delete(urlToRemove);
+      setBrokenUrls(newBrokenUrls);
+    }
   };
 
-  const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+  const handleImageError = (url: string) => {
+    setBrokenUrls(new Set(brokenUrls).add(url));
+  };
+
+  const isImage = (url: string) => {
+    // Check for image file extensions first
+    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(url)) return true;
+    // For Discord CDN, check if the URL contains image extensions
+    if (url.includes('cdn.discordapp.com') && /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url)) return true;
+    return false;
+  };
   const isVideo = (url: string) => /\.(mp4|webm)$/i.test(url) || url.includes('youtube.com') || url.includes('youtu.be');
 
   return (
@@ -63,11 +81,19 @@ export default function AttachmentInput({
             </button>
             
             {isImage(url) && (
-              <img 
-                src={url} 
-                alt="Attachment" 
-                className="w-full h-32 object-cover rounded-lg border border-gray-300 dark:border-gray-700"
-              />
+              brokenUrls.has(url) ? (
+                <div className="w-full h-32 bg-red-100 dark:bg-red-900/20 rounded-lg flex flex-col items-center justify-center border border-red-300 dark:border-red-700">
+                  <FaExclamationTriangle className="text-2xl text-red-500 mb-2" />
+                  <span className="text-xs text-red-600 dark:text-red-400">Error al cargar</span>
+                </div>
+              ) : (
+                <img 
+                  src={url} 
+                  alt="Attachment" 
+                  className="w-full h-32 object-cover rounded-lg border border-gray-300 dark:border-gray-700"
+                  onError={() => handleImageError(url)}
+                />
+              )
             )}
             
             {isVideo(url) && (

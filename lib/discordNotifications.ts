@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
+// Constants
+const MESSAGE_PREVIEW_LENGTH = 100;
+const NOTIFICATION_TITLE = "📩 Nuevo mensaje en tu ticket";
+const NOTIFICATION_REPLY_TEXT = "ha respondido:";
+const NOTIFICATION_LINK_TEXT = "🔗 Ver ticket";
+const NOTIFICATION_LINK_LABEL = "Haz clic aquí para ver el ticket";
+
 export async function sendTicketNotification({
   userId,
   ticketId,
@@ -30,6 +37,8 @@ export async function sendTicketNotification({
     if (!user?.discordId) return;
 
     const ticketUrl = `${dashboardUrl}/tickets/${ticketId}`;
+    const truncatedPreview = messagePreview.substring(0, MESSAGE_PREVIEW_LENGTH) + 
+                            (messagePreview.length > MESSAGE_PREVIEW_LENGTH ? '...' : '');
     
     // Enviar DM mediante el bot de Discord
     const response = await fetch(`${process.env.BOT_API_URL}/send-dm`, {
@@ -39,12 +48,12 @@ export async function sendTicketNotification({
         discordId: user.discordId,
         message: {
           embeds: [{
-            title: "📩 Nuevo mensaje en tu ticket",
-            description: `**${ticketTitle}**\n\n${senderName} ha respondido:\n> ${messagePreview.substring(0, 100)}${messagePreview.length > 100 ? '...' : ''}`,
+            title: NOTIFICATION_TITLE,
+            description: `**${ticketTitle}**\n\n${senderName} ${NOTIFICATION_REPLY_TEXT}\n> ${truncatedPreview}`,
             color: 0x5865F2,
             fields: [{
-              name: "🔗 Ver ticket",
-              value: `[Haz clic aquí para ver el ticket](${ticketUrl})`
+              name: NOTIFICATION_LINK_TEXT,
+              value: `[${NOTIFICATION_LINK_LABEL}](${ticketUrl})`
             }],
             footer: { text: `Ticket #${ticketId}` },
             timestamp: new Date().toISOString()
