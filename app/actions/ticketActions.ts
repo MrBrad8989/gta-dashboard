@@ -22,7 +22,14 @@ export async function createTicket(formData: FormData) {
   const proofUrl = formData.get("proofUrl") as string;
   const reportedUserName = formData.get("reportedUserName") as string;
   const attachmentsRaw = formData.get("attachments") as string;
-  const attachments = attachmentsRaw ? JSON.parse(attachmentsRaw) : [];
+  
+  let attachments: string[] = [];
+  try {
+    attachments = attachmentsRaw ? JSON.parse(attachmentsRaw) : [];
+  } catch (error) {
+    console.error('Error parsing attachments:', error);
+    attachments = [];
+  }
 
   if (!title || !description || !type) {
     throw new Error("Faltan datos obligatorios");
@@ -79,7 +86,14 @@ export async function sendMessage(ticketId: number, formData: FormData) {
 
   const content = formData.get("content") as string;
   const attachmentsRaw = formData.get("attachments") as string;
-  const attachments = attachmentsRaw ? JSON.parse(attachmentsRaw) : [];
+  
+  let attachments: string[] = [];
+  try {
+    attachments = attachmentsRaw ? JSON.parse(attachmentsRaw) : [];
+  } catch (error) {
+    console.error('Error parsing attachments:', error);
+    attachments = [];
+  }
 
   if (!content.trim() && attachments.length === 0) return;
 

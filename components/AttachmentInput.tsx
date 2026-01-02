@@ -62,7 +62,6 @@ export default function AttachmentInput({
                 src={url} 
                 alt="Attachment" 
                 className="w-full h-32 object-cover rounded-lg border border-gray-300 dark:border-gray-700"
-                onError={(e) => (e.currentTarget.src = '/placeholder-image.png')}
               />
             )}
             

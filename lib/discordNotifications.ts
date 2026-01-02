@@ -16,6 +16,12 @@ export async function sendTicketNotification({
   dashboardUrl: string;
 }) {
   try {
+    // Validar que BOT_API_URL esté configurado
+    if (!process.env.BOT_API_URL) {
+      console.warn('BOT_API_URL no está configurado, las notificaciones por DM no funcionarán');
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { discordId: true }
