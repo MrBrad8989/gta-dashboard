@@ -1,0 +1,57 @@
+<svg width="1920" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0b2e;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#2d1b4e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f0520;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.3" />
+      <stop offset="50%" style="stop-color:#06b6d4;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.3" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1920" height="400" fill="url(#grad1)"/>
+  
+  <!-- Grid pattern -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(139, 92, 246, 0.1)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="400" fill="url(#grid)" opacity="0.5"/>
+  
+  <!-- Gradient overlay at bottom -->
+  <rect y="300" width="1920" height="100" fill="url(#grad2)"/>
+  
+  <!-- City skyline silhouette -->
+  <g opacity="0.3" fill="#000">
+    <rect x="100" y="250" width="60" height="150"/>
+    <rect x="170" y="280" width="40" height="120"/>
+    <rect x="220" y="220" width="80" height="180"/>
+    <rect x="310" y="260" width="50" height="140"/>
+    <rect x="370" y="240" width="70" height="160"/>
+    
+    <rect x="1400" y="260" width="50" height="140"/>
+    <rect x="1460" y="220" width="80" height="180"/>
+    <rect x="1550" y="280" width="40" height="120"/>
+    <rect x="1600" y="250" width="60" height="150"/>
+    <rect x="1670" y="270" width="45" height="130"/>
+  </g>
+  
+  <!-- Main text -->
+  <text x="960" y="180" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#fff" text-anchor="middle">
+    GTA:W MANAGEMENT
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="960" y="230" font-family="Arial, sans-serif" font-size="28" fill="#a78bfa" text-anchor="middle">
+    Sistema Integral de Gestión
+  </text>
+  
+  <!-- Decorative lines -->
+  <line x1="400" y1="250" x2="700" y2="250" stroke="#8b5cf6" stroke-width="2" opacity="0.5"/>
+  <line x1="1220" y1="250" x2="1520" y2="250" stroke="#06b6d4" stroke-width="2" opacity="0.5"/>
+</svg>
