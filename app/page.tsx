@@ -85,14 +85,14 @@ export default async function Home() {
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Banner Hero */}
-      <div className="relative rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl min-h-[200px] sm:min-h-[250px] md:min-h-[300px] bg-gradient-to-r from-purple-900 via-violet-900 to-indigo-900">
+      <div className="relative rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl min-h-[200px] sm:min-h-[250px] md:min-h-[300px] bg-gradient-to-r from-orange-400 via-orange-500 to-orange-400">
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent"></div>
         <div className="relative z-10 p-6 sm:p-8 lg:p-10 flex flex-col justify-center h-full">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white drop-shadow-lg mb-3">
             Panel General
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl text-gray-200 drop-shadow-md">
-            Bienvenido de nuevo, <span className="font-bold text-purple-300">{session.user.name}</span>
+            Bienvenido de nuevo, <span className="font-bold text-orange-950">{session.user.name}</span>
           </p>
           <div className="mt-4 sm:mt-6 inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 sm:px-5 py-2 sm:py-3 rounded-full border border-white/20 w-fit">
             <span className="text-sm sm:text-base text-white font-medium">
@@ -117,18 +117,18 @@ export default async function Home() {
               <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2">Mis Tickets</h3>
               <p className="text-3xl sm:text-4xl font-extrabold text-gray-800 dark:text-white">{ticketCount}</p>
             </div>
-            <div className="p-3 sm:p-4 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-xl text-white shadow-lg group-hover:rotate-12 transition-transform duration-300">
+            <div className="p-3 sm:p-4 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl text-white shadow-lg group-hover:rotate-12 transition-transform duration-300">
               <FaTicketAlt className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
-          <div className="h-1 bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full"></div>
+          <div className="h-1 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"></div>
         </div>
       </div>
 
       {/* Banner de Novedades */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 border-l-4 border-blue-500 p-6 sm:p-8 rounded-2xl shadow-lg backdrop-blur-sm">
+      <div className="relative overflow-hidden bg-gradient-to-r from-orange-500/10 to-orange-600/10 dark:from-orange-500/20 dark:to-orange-600/20 border-l-4 border-orange-500 p-6 sm:p-8 rounded-2xl shadow-lg backdrop-blur-sm">
         <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-          <div className="flex-shrink-0 p-3 bg-blue-500 rounded-xl">
+          <div className="flex-shrink-0 p-3 bg-orange-500 rounded-xl">
             <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
             </svg>
@@ -147,7 +147,7 @@ export default async function Home() {
 
       {/* Sección de acceso rápido */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 dark:from-purple-500/20 dark:to-pink-500/20 p-6 sm:p-8 rounded-2xl border border-purple-300 dark:border-purple-700">
+        <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/10 dark:from-orange-500/20 dark:to-orange-600/20 p-6 sm:p-8 rounded-2xl border border-orange-300 dark:border-orange-700">
           <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-3">📋 Acceso Rápido</h3>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Accede a las funciones más utilizadas</p>
           <div className="flex flex-wrap gap-2 sm:gap-3">
@@ -163,7 +163,7 @@ export default async function Home() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 dark:from-cyan-500/20 dark:to-blue-500/20 p-6 sm:p-8 rounded-2xl border border-cyan-300 dark:border-cyan-700">
+        <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/10 dark:from-orange-500/20 dark:to-orange-600/20 p-6 sm:p-8 rounded-2xl border border-orange-300 dark:border-orange-700">
           <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-3">ℹ️ Información</h3>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Estado del sistema y estadísticas</p>
           <div className="space-y-3 text-sm sm:text-base">

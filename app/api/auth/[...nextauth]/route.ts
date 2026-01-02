@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // Definimos los tipos extra
 declare module "next-auth" {
   interface Session {
-    user: {
+    user:  {
       id: string;
       role: string;
       discordId: string;
@@ -19,42 +19,37 @@ export const authOptions: NextAuthOptions = {
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID as string,
       clientSecret: process.env.DISCORD_CLIENT_SECRET as string,
-      authorization: { params: { scope: "identify guilds" } },
+      authorization: { params: { scope:  "identify guilds" } },
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile, trigger }) {
+    async jwt({ token, account, profile }) {
       if (account && profile) {
         token.id = profile.id;
         token.discordId = profile.id;
       }
 
-      // ✅ CRÍTICO: Obtener el rol del usuario de la base de datos
-      if (token.discordId) {
+      // ✅ CRÍTICO: Obtener el rol y el ID del usuario de la base de datos
+      if (token. discordId) {
         const dbUser = await prisma.user.findUnique({
-          where: { discordId: token.discordId as string },
+          where: { discordId: token. discordId as string },
           select: { role: true, id: true },
         });
 
         if (dbUser) {
           token.role = dbUser.role;
-          token.userId = dbUser.id;
+          token.userId = dbUser.id.toString();
         }
       }
 
       return token;
     },
     async session({ session, token }) {
-      if (token.discordId) {
-        const dbUser = await prisma.user.findUnique({
-          where: { discordId: token.discordId as string },
-        });
-
-        if (dbUser) {
-          session.user.id = dbUser.id.toString();
-          session.user.role = dbUser.role;
-          session.user.discordId = dbUser.discordId;
-        }
+      // ✅ Usar los datos del token (más eficiente, sin query extra)
+      if (token.userId) {
+        session.user. id = token.userId as string;
+        session.user.role = token.role as string;
+        session.user.discordId = token.discordId as string;
       }
       return session;
     },
@@ -62,21 +57,21 @@ export const authOptions: NextAuthOptions = {
       if (!profile) return false;
 
       try {
-        const existingUser = await prisma.user.findUnique({
+        const existingUser = await prisma. user.findUnique({
           where: { discordId: profile.id as string },
         });
 
         if (!existingUser) {
           await prisma.user.create({
             data: {
-              discordId: profile.id as string,
-              name: profile.name || (profile as any).username,
+              discordId: profile. id as string,
+              name:  profile.name || (profile as any).username,
               avatar: (profile as any).avatar,
               role: "USER",
             },
           });
         } else {
-          await prisma.user.update({
+          await prisma.user. update({
             where: { discordId: profile.id as string },
             data: { lastLogin: new Date() },
           });
@@ -93,10 +88,10 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/", // ✅ Redirigir a home si falla
-    error: "/", // ✅ Redirigir a home en caso de error
+    signIn: "/",
+    error: "/",
   },
-  secret: process.env.NEXTAUTH_SECRET, // ✅ CRÍTICO
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);
