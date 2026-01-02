@@ -137,7 +137,7 @@ model Event {
   
   createdAt       DateTime @default(now())
 
-  subscribers      String[]  // IDs de Discord de interesados
+  subscribers      Json      @default("[]")  // IDs de Discord de interesados (stored as JSON array)
   publicMessageId  String?   // ID del mensaje en Discord
   startNotified    Boolean   @default(false)
   ticketChannelId  String?   // ID del canal de ticket creado

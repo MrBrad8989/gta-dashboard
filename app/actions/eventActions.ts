@@ -10,7 +10,7 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const REVIEW_CHANNEL_ID = process.env.DISCORD_EVENTS_CHANNEL_ID;
 
 export async function requestEvent(formData: FormData) {
-  // @ts-ignore
+  // @ts-expect-error - authOptions types not fully compatible
   const session = await getServerSession(authOptions);
   if (!session) throw new Error("Debes iniciar sesión.");
 
@@ -42,7 +42,7 @@ export async function requestEvent(formData: FormData) {
   }
 
   // 2. Subir Mapeo
-  let mappingUrls: string[] = [];
+  const mappingUrls: string[] = [];
   if (needsMapping && mappingFiles.length > 0) {
       for (const file of mappingFiles) {
           if (file.size > 0) {

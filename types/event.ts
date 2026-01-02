@@ -13,7 +13,7 @@ export interface EventData {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason?: string | null;
   creatorId: number;
-  subscribers: string[];
+  subscribers: string[] | unknown; // Stored as JSON in MySQL
   publicMessageId?: string | null;
   ticketChannelId?: string | null;
   startNotified: boolean;

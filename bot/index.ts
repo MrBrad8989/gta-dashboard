@@ -358,12 +358,15 @@ client.on('interactionCreate', async (interaction: Interaction) => {
         // ME INTERESA
         if (action === 'interested' && evt) {
             const userId = interaction.user.id;
-            if (!evt.subscribers.includes(userId)) {
+            // Handle subscribers as JSON/array
+            const subscribers = Array.isArray(evt.subscribers) ? evt.subscribers : [];
+            
+            if (!subscribers.includes(userId)) {
                 // Update event with new subscriber
                 await prisma.event.update({
                     where: { id: eventId },
                     data: {
-                        subscribers: [...evt.subscribers, userId]
+                        subscribers: [...subscribers, userId]
                     }
                 });
             } else {
@@ -381,7 +384,8 @@ client.on('interactionCreate', async (interaction: Interaction) => {
 
                     // Get updated subscriber count
                     const updatedEvent = await prisma.event.findUnique({ where: { id: eventId } });
-                    const count = updatedEvent?.subscribers.length || 0;
+                    const updatedSubscribers = Array.isArray(updatedEvent?.subscribers) ? updatedEvent.subscribers : [];
+                    const count = updatedSubscribers.length;
                     const fieldIndex = newEmbed.data.fields?.findIndex(f => f.name.includes('Interesados'));
                     if (fieldIndex !== undefined && fieldIndex !== -1 && newEmbed.data.fields) {
                         newEmbed.data.fields[fieldIndex].value = `${count} persona${count === 1 ? '' : 's'}`;
@@ -447,9 +451,10 @@ setInterval(async () => {
         if (diffSeconds <= 60 && diffSeconds > -120) {
             const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS || '') as TextChannel | undefined;
             if (publicChannel) {
+                const subscribers = Array.isArray(evt.subscribers) ? evt.subscribers : [];
                 const startEmbed = new EmbedBuilder()
                     .setTitle(`🔔 ¡El Evento Comienza YA!: ${evt.title}`)
-                    .setDescription(`El evento está empezando ahora mismo.\n\n**Interesados:** ${evt.subscribers.length} personas.`)
+                    .setDescription(`El evento está empezando ahora mismo.\n\n**Interesados:** ${subscribers.length} personas.`)
                     .setColor(0xFF0000) 
                     .setTimestamp();
 
@@ -459,7 +464,7 @@ setInterval(async () => {
                 });
 
                 // Send DMs to subscribers
-                for (const userId of evt.subscribers) {
+                for (const userId of subscribers) {
                     try {
                         const user = await client.users.fetch(userId);
                         await user.send(`🚀 **¡Corre!** El evento **${evt.title}** está comenzando ahora.`);
