@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers"; // Importamos el theme
 import Sidebar from "@/components/Sidebar";       // Importamos la Sidebar
 import Topbar from "@/components/Topbar";         // Importamos la Topbar
+import Header from "@/components/Header";         // Importamos el Header
 import { getServerSession } from "next-auth";     // Para comprobar si hay login
 
 const inter = Inter({ subsets: ["latin"] });
@@ -28,18 +29,24 @@ export default async function RootLayout({
       <body className={`${inter.className} bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100`}>
         <Providers>
           {session ? (
-            // SI ESTÁ LOGUEADO: Muestra el Layout completo (Sidebar + Topbar + Contenido)
-            <div className="flex h-screen overflow-hidden">
-              {/* Sidebar Fija a la izquierda */}
-              <Sidebar />
+            // SI ESTÁ LOGUEADO: Muestra el Layout completo (Header + Sidebar + Topbar + Contenido)
+            <div className="flex flex-col h-screen overflow-hidden">
+              {/* Header global en la parte superior */}
+              <Header />
               
-              {/* Columna Derecha */}
-              <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                <Topbar />
-                {/* El contenido de la página (children) va aquí con scroll propio */}
-                <main className="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0b0c15] transition-colors duration-300">
-                  {children}
-                </main>
+              {/* Contenedor para Sidebar y contenido principal */}
+              <div className="flex flex-1 overflow-hidden">
+                {/* Sidebar Fija a la izquierda */}
+                <Sidebar />
+                
+                {/* Columna Derecha */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <Topbar />
+                  {/* El contenido de la página (children) va aquí con scroll propio */}
+                  <main className="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0b0c15] transition-colors duration-300">
+                    {children}
+                  </main>
+                </div>
               </div>
             </div>
           ) : (
