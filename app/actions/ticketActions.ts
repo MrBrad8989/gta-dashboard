@@ -124,23 +124,25 @@ export async function sendMessage(ticketId: number, formData: FormData) {
   const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'http://localhost:3000';
 
   // NOTIFICAR según quién responde
-  if (isStaff && ticket.assignedToId === currentUserId) {
+  if (isStaff) {
     // Staff responde → Notificar al usuario creador
+    const previewText = content.trim() || '(envió archivos adjuntos)';
     await sendTicketNotification({
       userId: ticket.creatorId,
       ticketId,
       ticketTitle: ticket.title,
-      messagePreview: content,
+      messagePreview: previewText,
       senderName: session.user.name || 'Staff',
       dashboardUrl
     });
   } else if (!isStaff && ticket.assignedToId) {
     // Usuario responde → Notificar al staff asignado
+    const previewText = content.trim() || '(envió archivos adjuntos)';
     await sendTicketNotification({
       userId: ticket.assignedToId,
       ticketId,
       ticketTitle: ticket.title,
-      messagePreview: content,
+      messagePreview: previewText,
       senderName: session.user.name || 'Usuario',
       dashboardUrl
     });

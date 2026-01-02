@@ -71,10 +71,6 @@ app.post('/send-dm', async (req, res) => {
     const { discordId, message } = req.body;
     
     const user = await client.users.fetch(discordId);
-    if (!user) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
     await user.send(message);
     res.json({ success: true });
   } catch (error) {

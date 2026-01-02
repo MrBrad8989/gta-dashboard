@@ -1,5 +1,11 @@
 export default function AttachmentPreview({ url }: { url: string }) {
-  const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url) || url.includes('cdn.discordapp.com');
+  const isImage = (url: string) => {
+    // Check for image file extensions first
+    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(url)) return true;
+    // For Discord CDN, check if the URL contains image extensions
+    if (url.includes('cdn.discordapp.com') && /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url)) return true;
+    return false;
+  };
   const isYouTube = (url: string) => url.includes('youtube.com') || url.includes('youtu.be');
   
   const getYouTubeEmbedUrl = (url: string) => {

@@ -14,6 +14,11 @@ export default function AttachmentInput({
 
   const addUrl = () => {
     if (!urlInput.trim()) return;
+    // Evitar URLs duplicadas
+    if (attachments.includes(urlInput.trim())) {
+      setUrlInput('');
+      return;
+    }
     onChange([...attachments, urlInput.trim()]);
     setUrlInput('');
   };
