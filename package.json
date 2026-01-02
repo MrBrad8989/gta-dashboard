@@ -5,10 +5,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "dev:turbo": "next dev --turbo",
+    "dev: webpack": "next dev --webpack",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint",
-    "bot":  "ts-node bot/index.ts"
+    "lint": "next lint",
+    "bot":  "tsx bot/index.ts",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@types/express": "^5.0.6",

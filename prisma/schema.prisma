@@ -8,34 +8,26 @@ datasource db {
 }
 
 model User {
-  id            Int       @id @default(autoincrement())
-  discordId     String    @unique
-  name          String?
-  avatar        String?
-  role          String    @default("USER")
-  createdAt     DateTime  @default(now())
-  lastLogin     DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  discordId String   @unique
+  name      String?
+  avatar    String?
+  role      UserRole @default(USER) // ✅ Usar enum en lugar de String
+  createdAt DateTime @default(now())
+  lastLogin DateTime @updatedAt
+  isBanned  Boolean  @default(false)
 
-  // --- RELACIONES CORREGIDAS ---
-  
-  // 1. Tickets creados por mí
-  createdTickets       Ticket[]      @relation("CreatedTickets")
-  
-  // 2. Tickets asignados a mí (si soy staff)
-  assignedTickets      Ticket[]      @relation("AssignedTickets")
-  
-  // 3. Mensajes que he escrito
+  // Relaciones
+  createdTickets       Ticket[]        @relation("CreatedTickets")
+  assignedTickets      Ticket[]        @relation("AssignedTickets")
   ticketMessages       TicketMessage[]
-
-  // 4. Tickets donde participo (chat)
-  participatingTickets Ticket[]      @relation("TicketParticipants")
-  
-  // 5. Reportes recibidos (Soy el acusado) - ESTA ES LA BUENA
-  receivedReports      Ticket[]      @relation("ReportedUser")
-  
-  isBanned      Boolean   @default(false)
-
+  participatingTickets Ticket[]        @relation("TicketParticipants")
+  receivedReports      Ticket[]        @relation("ReportedUser")
   events               Event[]
+
+  @@index([role])
+  @@index([isBanned])
+  @@index([createdAt])
 }
 
 enum UserRole {
@@ -46,26 +38,29 @@ enum UserRole {
   USER
 }
 
-// Nueva tabla para simular las casas/negocios del juego
 model Property {
   id         Int     @id @default(autoincrement())
   address    String
-  ownerName  String? 
+  ownerName  String?
   price      Int
-  type       String  
+  type       String
   posX       Float
   posY       Float
   posZ       Float
   isOccupied Boolean @default(false)
-  status     String  @default("APPROVED") 
+  status     String  @default("APPROVED")
+
+  @@index([isOccupied])
+  @@index([type])
+  @@index([status])
 }
 
 enum TicketType {
-  USER_REPORT    
-  FACTION_REPORT 
-  BUG_REPORT     
-  ACCOUNT_HELP   
-  GENERAL_SUPPORT 
+  USER_REPORT
+  FACTION_REPORT
+  BUG_REPORT
+  ACCOUNT_HELP
+  GENERAL_SUPPORT
 }
 
 enum TicketStatus {
@@ -81,75 +76,85 @@ model Ticket {
   title       String
   description String       @db.Text
   status      TicketStatus @default(OPEN)
+  proofUrl    String? 
 
-  proofUrl    String?
-  
   // Creador
-  creatorId   Int
-  creator     User         @relation("CreatedTickets", fields: [creatorId], references: [id])
+  creatorId Int
+  creator   User @relation("CreatedTickets", fields: [creatorId], references: [id], onDelete: Cascade) // ✅ onDelete
 
   // Acusado / Reportado
   reportedUserId Int?
-  reportedUser   User?     @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  reportedUser   User? @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull) // ✅ onDelete
 
   // Staff Asignado
-  assignedToId Int?
-  assignedTo   User?       @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  assignedToId Int? 
+  assignedTo   User? @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete:  SetNull) // ✅ onDelete
 
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  
-  messages    TicketMessage[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  participants User[]      @relation("TicketParticipants")
+  messages     TicketMessage[]
+  participants User[]          @relation("TicketParticipants")
+
+  @@index([creatorId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@index([type]) // ✅ Añadido
 }
 
 model TicketMessage {
-  id        Int      @id @default(autoincrement())
-  content   String   @db.Text
-  
-  ticketId  Int
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  
-  authorId  Int
-  author    User     @relation(fields: [authorId], references: [id])
-  
+  id      Int    @id @default(autoincrement())
+  content String @db.Text
+
+  ticketId Int
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade) // ✅ onDelete
+
   createdAt DateTime @default(now())
+
+  @@index([ticketId]) // ✅ Añadido
+  @@index([authorId]) // ✅ Añadido
+  @@index([createdAt]) // ✅ Añadido
 }
+
 model Event {
-  id              Int      @id @default(autoincrement())
-  
-  // Datos Básicos
-  title           String
-  description     String   @db.Text
-  eventDate       DateTime
-  flyerUrl        String
-  publicImageUrl   String? 
-  
-  // OJO: Hemos quitado gtawLink porque ya no lo pides en el formulario nuevo.
-  
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text
+  eventDate   DateTime
+  flyerUrl    String   @db.Text // ✅ Cambiado a Text para URLs largas
+  publicImageUrl String?  @db.Text // ✅ Cambiado a Text
+
   // Requisitos Técnicos
-  needsCars       Boolean  @default(false)
-  carsDesc        String?  @db.Text
-  needsRadio      Boolean  @default(false)
-  needsMapping    Boolean  @default(false)
-  mappingDesc     String?  @db.Text
-  mappingFiles    String?  @db.Text
-  
+  needsCars    Boolean @default(false)
+  carsDesc     String? @db.Text
+  needsRadio   Boolean @default(false)
+  needsMapping Boolean @default(false)
+  mappingDesc  String? @db.Text
+  mappingFiles String? @db.Text
+
   // Gestión
   status          EventStatus @default(PENDING)
   rejectionReason String?     @db.Text
-  
-  // Relaciones
-  creatorId       Int
-  creator         User     @relation(fields: [creatorId], references: [id])
-  
-  createdAt       DateTime @default(now())
 
-  subscribers      Json      @default("[]")  // IDs de Discord de interesados (stored as JSON array)
-  publicMessageId  String?   // ID del mensaje en Discord
-  startNotified    Boolean   @default(false)
-  ticketChannelId  String?   // ID del canal de ticket creado
+  // Relaciones
+  creatorId Int
+  creator   User @relation(fields: [creatorId], references: [id], onDelete: Cascade) // ✅ onDelete
+
+  createdAt DateTime @default(now())
+
+  subscribers     Json    @default("[]")
+  publicMessageId String? 
+  startNotified   Boolean @default(false)
+  ticketChannelId String?
+
+  @@index([creatorId])
+  @@index([status])
+  @@index([eventDate])
+  @@index([createdAt])
 }
 
 enum EventStatus {
