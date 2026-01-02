@@ -104,8 +104,9 @@ model Ticket {
 }
 
 model TicketMessage {
-  id      Int    @id @default(autoincrement())
-  content String @db.Text
+  id          Int      @id @default(autoincrement())
+  content     String   @db.Text
+  attachments Json?    @default("[]") // URLs of images/videos
 
   ticketId Int
   ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)

@@ -65,6 +65,20 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
+// Endpoint para enviar DMs
+app.post('/send-dm', async (req, res) => {
+  try {
+    const { discordId, message } = req.body;
+    
+    const user = await client.users.fetch(discordId);
+    await user.send(message);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error enviando DM:', error);
+    res.status(500).json({ error: 'No se pudo enviar el DM' });
+  }
+});
+
 // --- API:  POST ---
 app.post('/api/evento', express.json(), async (req: express.Request, res: express.Response) => {
     

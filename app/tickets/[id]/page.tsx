@@ -4,6 +4,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { sendMessage, updateTicketStatus, addUserToTicket } from "@/app/actions/ticketActions";
 import { FaPaperPlane, FaLock, FaUnlock, FaUserPlus, FaUsers } from "react-icons/fa";
 import { redirect } from "next/navigation";
+import AttachmentPreview from "@/components/AttachmentPreview";
+import TicketMessageForm from "@/components/TicketMessageForm";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -173,6 +175,15 @@ export default async function TicketDetailPage(props: PageProps) {
                                 </span>
                             </div>
                             <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                            
+                            {/* Attachments */}
+                            {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {(msg.attachments as string[]).map((url, index) => (
+                                  <AttachmentPreview key={index} url={url} />
+                                ))}
+                              </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -189,18 +200,7 @@ export default async function TicketDetailPage(props: PageProps) {
           </div>
       ) : (
           <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shrink-0">
-            <form action={sendMessageWithId} className="flex gap-2 md:gap-4 max-w-5xl mx-auto">
-                <input 
-                    type="text" 
-                    name="content"
-                    autoComplete="off"
-                    placeholder="Escribe tu mensaje..." 
-                    className="flex-1 p-3 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-gray-800 dark:text-white"
-                />
-                <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl transition shadow flex items-center gap-2 font-bold">
-                    <FaPaperPlane /> <span className="hidden md:inline">Enviar</span>
-                </button>
-            </form>
+            <TicketMessageForm ticketId={ticket.id} sendMessageAction={sendMessageWithId} />
           </div>
       )}
     </div>
