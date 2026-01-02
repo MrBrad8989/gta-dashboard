@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { sendTicketNotification } from "@/lib/discordNotifications"; 
 
 // 1. CREAR TICKET O REPORTE
 export async function createTicket(formData: FormData) {
@@ -20,6 +21,8 @@ export async function createTicket(formData: FormData) {
   const type = formData.get("type") as any;
   const proofUrl = formData.get("proofUrl") as string;
   const reportedUserName = formData.get("reportedUserName") as string;
+  const attachmentsRaw = formData.get("attachments") as string;
+  const attachments = attachmentsRaw ? JSON.parse(attachmentsRaw) : [];
 
   if (!title || !description || !type) {
     throw new Error("Faltan datos obligatorios");
@@ -33,7 +36,7 @@ export async function createTicket(formData: FormData) {
     if (userFound) reportedUserId = userFound.id;
   }
 
-  await prisma.ticket.create({
+  const ticket = await prisma.ticket.create({
     data: {
       title,
       description,
@@ -44,6 +47,18 @@ export async function createTicket(formData: FormData) {
       reportedUserId: reportedUserId
     }
   });
+
+  // Si hay attachments, crear un mensaje inicial con ellos
+  if (attachments.length > 0) {
+    await prisma.ticketMessage.create({
+      data: {
+        content: "📎 Archivos adjuntos iniciales",
+        attachments,
+        ticketId: ticket.id,
+        authorId: parseInt(session.user.id),
+      }
+    });
+  }
 
   revalidatePath("/tickets");
   revalidatePath("/my-reports");
@@ -63,15 +78,59 @@ export async function sendMessage(ticketId: number, formData: FormData) {
   if (!session) return;
 
   const content = formData.get("content") as string;
-  if (!content.trim()) return;
+  const attachmentsRaw = formData.get("attachments") as string;
+  const attachments = attachmentsRaw ? JSON.parse(attachmentsRaw) : [];
 
+  if (!content.trim() && attachments.length === 0) return;
+
+  const currentUserId = parseInt(session.user.id);
+  const isStaff = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'].includes(session.user.role);
+
+  // Crear mensaje
   await prisma.ticketMessage.create({
     data: {
       content,
+      attachments,
       ticketId,
-      authorId: parseInt(session.user.id),
+      authorId: currentUserId,
     }
   });
+
+  // Obtener info del ticket
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    include: { 
+      creator: true,
+      assignedTo: true 
+    }
+  });
+
+  if (!ticket) return;
+
+  const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'http://localhost:3000';
+
+  // NOTIFICAR según quién responde
+  if (isStaff && ticket.assignedToId === currentUserId) {
+    // Staff responde → Notificar al usuario creador
+    await sendTicketNotification({
+      userId: ticket.creatorId,
+      ticketId,
+      ticketTitle: ticket.title,
+      messagePreview: content,
+      senderName: session.user.name || 'Staff',
+      dashboardUrl
+    });
+  } else if (!isStaff && ticket.assignedToId) {
+    // Usuario responde → Notificar al staff asignado
+    await sendTicketNotification({
+      userId: ticket.assignedToId,
+      ticketId,
+      ticketTitle: ticket.title,
+      messagePreview: content,
+      senderName: session.user.name || 'Usuario',
+      dashboardUrl
+    });
+  }
 
   await prisma.ticket.update({
     where: { id: ticketId },

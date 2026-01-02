@@ -4,10 +4,12 @@ import { createTicket } from "@/app/actions/ticketActions";
 import Link from "next/link";
 import { useState } from "react";
 import { FaArrowLeft, FaLifeRing, FaBug, FaQuestionCircle, FaUserLock, FaLightbulb } from "react-icons/fa";
+import AttachmentInput from "@/components/AttachmentInput";
 
 export default function NewTicketPage() {
   // Estado para mostrar guías dinámicas
   const [selectedType, setSelectedType] = useState("GENERAL_SUPPORT");
+  const [attachments, setAttachments] = useState<string[]>([]);
 
   return (
     <div className="max-w-2xl mx-auto p-8">
@@ -26,7 +28,13 @@ export default function NewTicketPage() {
         </p>
       </div>
 
-      <form action={createTicket} className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border-t-4 border-indigo-500 dark:border-indigo-600 space-y-6">
+      <form 
+        action={async (formData) => {
+          formData.append('attachments', JSON.stringify(attachments));
+          await createTicket(formData);
+        }}
+        className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border-t-4 border-indigo-500 dark:border-indigo-600 space-y-6"
+      >
         
         {/* SELECTOR DE TIPO */}
         <div>
@@ -127,6 +135,14 @@ export default function NewTicketPage() {
             name="proofUrl"
             placeholder="URL de imagen si es necesaria"
             className="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Archivos Adjuntos (Opcional)</label>
+          <AttachmentInput 
+            attachments={attachments}
+            onChange={setAttachments}
           />
         </div>
 
