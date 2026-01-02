@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
   // ✅ Optimización de producción
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
+
+  // ✅ Ocultar indicadores de desarrollo
+  devIndicators: false,
 };
 
 export default nextConfig;

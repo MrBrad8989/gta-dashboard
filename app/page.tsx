@@ -13,12 +13,13 @@ export default async function Home() {
   if (!session) {
     return (
       <div 
-        className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center text-white px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative overflow-hidden"
+        className="fixed inset-0 w-full h-full overflow-auto flex flex-col items-center justify-center text-white px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
         style={{
           backgroundImage: "url('/login-bg.jpg')",
           backgroundSize: "cover",
           backgroundPosition: "center",
-          backgroundRepeat: "no-repeat"
+          backgroundRepeat: "no-repeat",
+          minHeight: "100vh"
         }}
       >
         {/* Overlay con blur */}
