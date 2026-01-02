@@ -38,6 +38,14 @@ model User {
   events               Event[]
 }
 
+enum UserRole {
+  FOUNDER
+  ADMIN
+  TRIAL_ADMIN
+  SUPPORT
+  USER
+}
+
 // Nueva tabla para simular las casas/negocios del juego
 model Property {
   id         Int     @id @default(autoincrement())

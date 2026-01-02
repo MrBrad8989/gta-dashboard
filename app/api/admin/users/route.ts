@@ -12,12 +12,12 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Verificar que el usuario sea ADMIN
+    // Verificar que el usuario sea FOUNDER o ADMIN
     const user = await prisma.user.findUnique({
       where: { discordId: session.user.discordId },
     });
 
-    if (!user || user.role !== "ADMIN") {
+    if (!user || ! ['FOUNDER', 'ADMIN']. includes(user.role)) {
       return NextResponse.json({ error: "No tienes permisos" }, { status: 403 });
     }
 
@@ -45,24 +45,33 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Verificar que el usuario sea ADMIN
+    // Verificar que el usuario sea FOUNDER o ADMIN
     const admin = await prisma.user.findUnique({
       where: { discordId: session.user. discordId },
     });
 
-    if (!admin || admin.role !== "ADMIN") {
+    if (!admin || !['FOUNDER', 'ADMIN'].includes(admin.role)) {
       return NextResponse.json({ error: "No tienes permisos" }, { status: 403 });
     }
 
     const body = await req.json();
     const { userId, role, isBanned } = body;
 
+    // El FOUNDER no puede ser editado por otros
+    const targetUser = await prisma.user. findUnique({
+      where:  { id: userId }
+    });
+
+    if (targetUser?. role === 'FOUNDER' && admin.role !== 'FOUNDER') {
+      return NextResponse.json({ error: "No puedes editar al fundador" }, { status: 403 });
+    }
+
     // Actualizar usuario
     const updateData:  any = {};
     if (role !== undefined) updateData.role = role;
     if (isBanned !== undefined) updateData.isBanned = isBanned;
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.user. update({
       where: { id: userId },
       data: updateData,
     });
