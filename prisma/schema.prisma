@@ -116,6 +116,7 @@ model Event {
   description     String   @db.Text
   eventDate       DateTime
   flyerUrl        String
+  publicImageUrl   String? 
   
   // OJO: Hemos quitado gtawLink porque ya no lo pides en el formulario nuevo.
   

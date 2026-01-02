@@ -1,126 +1,221 @@
-import { getServerSession } from "next-auth";
-import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import Link from "next/link";
-import { FaUsers, FaSearch, FaUserShield, FaBan, FaEye } from "react-icons/fa";
-import { updateUserRole, toggleUserBan } from "@/app/actions/userActions";
+"use client";
 
-export default async function UserManagementPage() {
-  // @ts-ignore
-  const session = await getServerSession(authOptions);
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
-  // Seguridad: Solo Founder y Admin entran
-  if (!session || !['FOUNDER', 'ADMIN'].includes(session.user.role)) {
-    return <div className="p-10 text-center text-red-500 font-bold">Acceso Denegado</div>;
+type User = {
+  id: number;
+  discordId: string;
+  name: string | null;
+  avatar: string | null;
+  role: string;
+  createdAt: string;
+  lastLogin: string;
+  isBanned: boolean;
+};
+
+export default function UsersPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetch("/api/admin/users")
+        .then(async (res) => {
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Error ${res.status}: ${text}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setUsers(data);
+          } else {
+            setError("Formato de datos inválido");
+          }
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Error loading users:", err);
+          setError(err.message || "Error al cargar usuarios");
+          setLoading(false);
+        });
+    }
+  }, [status]);
+
+  const handleRoleChange = async (userId: number, newRole: string) => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role: newRole }),
+      });
+
+      if (!res.ok) throw new Error("Error al actualizar rol");
+
+      setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+    } catch (err) {
+      console.error(err);
+      alert("Error al actualizar el rol");
+    }
+  };
+
+  const handleBanToggle = async (userId: number, currentBan: boolean) => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method:  "PATCH",
+        headers:  { "Content-Type": "application/json" },
+        body:  JSON.stringify({ userId, isBanned: !currentBan }),
+      });
+
+      if (!res.ok) throw new Error("Error al actualizar estado");
+
+      setUsers(
+        users.map((u) => (u.id === userId ? { ...u, isBanned: ! currentBan } : u))
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Error al actualizar el estado del usuario");
+    }
+  };
+
+  const getAvatarUrl = (user: User) => {
+    if (!user.avatar) {
+      return `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discordId) % 5}.png`;
+    }
+    
+    return `https://cdn.discordapp.com/avatars/${user. discordId}/${user. avatar}.${
+      user.avatar.startsWith("a_") ? "gif" : "png"
+    }? size=128`;
+  };
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-xl">Cargando usuarios...</div>
+      </div>
+    );
   }
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { _count: { select: { createdTickets: true, receivedReports: true } } }
-  });
-
-  return (
-    <div className="p-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
-                <FaUsers className="text-indigo-600" /> Gestión de Usuarios
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400">Administra roles, accesos y revisa historiales.</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 font-mono text-sm">
-            Total Registrados: <b>{users.length}</b>
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="bg-red-900 border border-red-700 rounded-lg p-6 max-w-md">
+          <h2 className="text-xl font-bold mb-2">❌ Error</h2>
+          <p>{error}</p>
+          <button
+            onClick={() => router.push("/")}
+            className="mt-4 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded"
+          >
+            Volver al inicio
+          </button>
         </div>
       </div>
+    );
+  }
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-              <tr>
-                <th className="p-4 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase">Usuario</th>
-                <th className="p-4 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase">Rol Actual</th>
-                <th className="p-4 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase">Estado</th>
-                <th className="p-4 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase text-center">Tickets / Reportes</th>
-                <th className="p-4 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                  <td className="p-4 flex items-center gap-3">
-                    <img src={user.avatar || "/default-avatar.png"} className="w-10 h-10 rounded-full border border-gray-200" />
-                    <div>
-                        <div className="font-bold text-gray-800 dark:text-white">{user.name}</div>
-                        <div className="text-xs text-gray-400 font-mono">{user.discordId}</div>
-                    </div>
-                  </td>
-                  
-                  {/* SELECTOR DE ROL */}
-                  <td className="p-4">
-                    <form action={async (formData) => {
-                        "use server";
-                        await updateUserRole(user.id, formData.get("role") as string);
-                    }}>
-                        <select 
-                            name="role" 
-                            defaultValue={user.role}
-                            // Auto-submit al cambiar (Truco JS en servidor: requiere botón o client component, 
-                            // pero para simplificar ponemos un botón discreto o usamos onChange en un client component.
-                            // Para hacerlo fácil aquí, pondremos un botón pequeño de guardar si cambias)
-                            className="bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-xs rounded p-1 text-gray-800 dark:text-white font-bold cursor-pointer"
-                        >
-                            <option value="USER">USUARIO</option>
-                            <option value="SUPPORT">SUPPORT</option>
-                            <option value="TRIAL_ADMIN">TRIAL ADMIN</option>
-                            <option value="ADMIN">ADMIN</option>
-                            <option value="FOUNDER">FOUNDER</option>
-                        </select>
-                        <button type="submit" className="ml-2 text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded hover:bg-indigo-700">Guardar</button>
-                    </form>
-                  </td>
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6">👥 Gestión de Usuarios</h1>
 
-                  <td className="p-4">
-                    {user.isBanned ? (
-                        <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold border border-red-200">
-                            <FaBan /> VETADO
-                        </span>
-                    ) : (
-                        <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold border border-green-200">
-                            <FaUserShield /> ACTIVO
-                        </span>
-                    )}
-                  </td>
-
-                  <td className="p-4 text-center text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-bold text-indigo-600">{user._count.createdTickets}</span> <span className="text-xs">creados</span>
-                    <span className="mx-2 text-gray-300">|</span>
-                    <span className="font-bold text-red-600">{user._count.receivedReports}</span> <span className="text-xs">recibidos</span>
-                  </td>
-
-                  <td className="p-4 text-right flex items-center justify-end gap-2">
-                    {/* Botón Ver Perfil Completo */}
-                    <Link href={`/admin/users/${user.id}`} className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition" title="Ver Historial">
-                        <FaEye />
-                    </Link>
-
-                    {/* Botón Banear */}
-                    <form action={async () => {
-                        "use server";
-                        await toggleUserBan(user.id);
-                    }}>
-                        <button 
-                            className={`p-2 rounded transition text-white ${user.isBanned ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
-                            title={user.isBanned ? "Quitar Veto" : "Vetar Usuario"}
-                        >
-                            {user.isBanned ? <FaUserShield /> : <FaBan />}
-                        </button>
-                    </form>
-                  </td>
+        <div className="bg-gray-800 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-left">Avatar</th>
+                  <th className="px-6 py-3 text-left">Usuario</th>
+                  <th className="px-6 py-3 text-left">Discord ID</th>
+                  <th className="px-6 py-3 text-left">Rol</th>
+                  <th className="px-6 py-3 text-left">Registro</th>
+                  <th className="px-6 py-3 text-left">Último Login</th>
+                  <th className="px-6 py-3 text-left">Estado</th>
+                  <th className="px-6 py-3 text-left">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-750">
+                    <td className="px-6 py-4">
+                      <img
+                        src={getAvatarUrl(user)}
+                        alt={user. name || "Usuario"}
+                        className="w-12 h-12 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discordId) % 5}.png`;
+                        }}
+                      />
+                    </td>
+                    <td className="px-6 py-4 font-medium">
+                      {user.name || "Sin nombre"}
+                    </td>
+                    <td className="px-6 py-4 text-gray-400 font-mono text-sm">
+                      {user.discordId}
+                    </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                        className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm"
+                        disabled={user.isBanned}
+                      >
+                        <option value="USER">Usuario</option>
+                        <option value="MODERATOR">Moderador</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400">
+                      {new Date(user.createdAt).toLocaleDateString("es-ES")}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400">
+                      {new Date(user.lastLogin).toLocaleDateString("es-ES")}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          user.isBanned
+                            ? "bg-red-900 text-red-200"
+                            : "bg-green-900 text-green-200"
+                        }`}
+                      >
+                        {user. isBanned ? "🚫 Baneado" : "✅ Activo"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleBanToggle(user.id, user.isBanned)}
+                        className={`px-4 py-2 rounded font-semibold text-sm ${
+                          user.isBanned
+                            ? "bg-green-600 hover:bg-green-700"
+                            : "bg-red-600 hover:bg-red-700"
+                        }`}
+                      >
+                        {user.isBanned ? "Desbanear" : "Banear"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {users.length === 0 && (
+            <div className="p-8 text-center text-gray-400">
+              No hay usuarios registrados
+            </div>
+          )}
         </div>
       </div>
     </div>

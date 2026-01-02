@@ -5,21 +5,21 @@ import { prisma } from "@/lib/prisma";
 // Definimos los tipos extra
 declare module "next-auth" {
   interface Session {
-    user:  {
+    user: {
       id: string;
       role: string;
       discordId: string;
-    } & DefaultSession["user"]
+    } & DefaultSession["user"];
   }
 }
 
 // Configuración de NextAuth
 export const authOptions: NextAuthOptions = {
-  providers:  [
+  providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID as string,
       clientSecret: process.env.DISCORD_CLIENT_SECRET as string,
-      authorization:  { params: { scope: 'identify guilds' } },
+      authorization: { params: { scope: "identify guilds" } },
     }),
   ],
   callbacks: {
@@ -32,12 +32,12 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token.discordId) {
-        const dbUser = await prisma. user.findUnique({
-          where: { discordId: token.discordId as string }
+        const dbUser = await prisma.user.findUnique({
+          where: { discordId: token.discordId as string },
         });
 
         if (dbUser) {
-          session.user. id = dbUser.id.toString();
+          session.user.id = dbUser.id.toString(); // ✅ ID numérico como string
           session.user.role = dbUser.role;
           session.user.discordId = dbUser.discordId;
         }
@@ -47,8 +47,8 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       if (!profile) return false;
 
-      const existingUser = await prisma. user.findUnique({
-        where: { discordId: profile.id as string }
+      const existingUser = await prisma.user.findUnique({
+        where: { discordId: profile.id as string },
       });
 
       if (!existingUser) {
@@ -57,18 +57,18 @@ export const authOptions: NextAuthOptions = {
             discordId: profile.id as string,
             name: profile.name || (profile as any).username,
             avatar: (profile as any).avatar,
-            role: 'USER'
-          }
+            role: "USER",
+          },
         });
       } else {
         await prisma.user.update({
           where: { discordId: profile.id as string },
-          data: { lastLogin: new Date() }
+          data: { lastLogin: new Date() },
         });
       }
 
       return true;
-    }
+    },
   },
   session: {
     strategy: "jwt",

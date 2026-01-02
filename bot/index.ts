@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv. config();
+dotenv.config();
 
 import express from 'express';
 import Discord from 'discord.js';
@@ -66,130 +66,132 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // --- API:  POST ---
-app.post('/api/evento', upload.fields([
-    { name: 'flyer', maxCount: 1 }, 
-    { name: 'mappingFiles', maxCount: 10 }
-]), async (req: Request, res: Response) => {
+app.post('/api/evento', express.json(), async (req: express.Request, res: express.Response) => {
     
     const data = req.body;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] } || {};
 
-    const dateObj = dayjs. utc(data.date);
-    const minutes = dateObj.minute();
-    if (minutes !== 0 && minutes !== 30) {
-        if(files['flyer']) fs.unlinkSync(files['flyer'][0].path);
-        if(files['mappingFiles']) files['mappingFiles']. forEach(f => fs.unlinkSync(f.path));
-        return res. status(400).json({ error: "La hora debe ser en punto (: 00) o y media (:30)." });
-    }
+    console.log('📥 Recibido evento desde web:', data);
 
-    // Check if date is taken using Prisma
-    const isTaken = await prisma.event.findFirst({
-        where: {
-            eventDate: dateObj.toDate(),
-            status: { not: EventStatus.REJECTED }
-        }
-    });
-    
-    if (isTaken) {
-        if(files['flyer']) fs.unlinkSync(files['flyer'][0].path);
-        if(files['mappingFiles']) files['mappingFiles'].forEach(f => fs.unlinkSync(f.path));
-        return res. status(400).json({ error: "Fecha ocupada." });
-    }
-
-    const needsCars = data.needsCars === 'true';
-    const needsRadio = data.needsRadio === 'true';
-    const needsMapping = data.needsMapping === 'true';
-    const requiresSupport = needsCars || needsRadio || needsMapping;
-
-    const flyerPath = files['flyer'] ? files['flyer'][0]. path : null;
-
-    // Create event in Prisma
-    const newEvent = await prisma.event. create({
-        data: {
-            title: data.title,
-            description: data.description,
-            eventDate: dateObj.toDate(),
-            flyerUrl: flyerPath || '',
-            needsCars,
-            carsDesc: needsCars ? data.carsDesc : null,
-            needsRadio,
-            needsMapping,
-            mappingDesc: needsMapping ? data.mappingDesc : null,
-            mappingFiles: null,
-            status: EventStatus.PENDING,
-            creatorId: parseInt(data.userId),
-            subscribers: [],
-            publicMessageId: null,
-            startNotified: false,
-            ticketChannelId: null
-        }
+    // Obtener el evento de la base de datos
+    const evt = await prisma.event.findUnique({
+        where: { id: data.eventId }
     });
 
-    // Rename mapping files with event ID and save paths
-    const finalMappingPathsRenamed:  string[] = [];
-    if (files['mappingFiles']) {
-        files['mappingFiles'].forEach((file, index) => {
-            const ext = path.extname(file. originalname);
-            const newFilename = `${newEvent.id}-${index + 1}${ext}`;
-            const newPath = path.join('public/uploads/mapping/', newFilename);
-            try {
-                fs.renameSync(file.path, newPath);
-                finalMappingPathsRenamed.push(newPath);
-            } catch (err) { console.error(err); }
-        });
-        
-        // Update event with mapping files
-        await prisma.event. update({
-            where: { id: newEvent.id },
-            data: { mappingFiles: finalMappingPathsRenamed. join(',') }
-        });
-    } 
+    if (!evt) {
+        console.error('❌ Evento no encontrado en DB:', data.eventId);
+        return res.status(404).json({ error: 'Evento no encontrado' });
+    }
+
+    console.log('✅ Evento encontrado en DB:', evt. id);
+
+    const requiresSupport = evt.needsCars || evt.needsRadio || evt.needsMapping;
 
     // --- ENVIAR A DISCORD (ADMIN) ---
-    const adminChannel = client.channels.cache. get(process.env.CHANNEL_ID_SOLICITUDES || '');
-    if (adminChannel && 'send' in adminChannel) {
-        const embed = new EmbedBuilder()
-            .setTitle(requiresSupport ? '🚨 SOLICITUD CON SOPORTE TÉCNICO' : '📢 Nueva Solicitud Estándar')
-            .setColor(requiresSupport ? 0xFF0000 : 0xFFA500)
-            .addFields(
-                { name: '👤 Usuario', value: `<@${data.userId}>`, inline: true },
-                { name: '📅 Fecha (UTC)', value: dateObj.format('DD/MM/YYYY HH: mm'), inline: true },
-                { name: '📝 Título', value: data.title, inline: false },
-                { name: '📄 Descripción del Evento', value: data.description, inline: false }
-            );
+    const adminChannel = client.channels.cache.get(process.env. CHANNEL_ID_SOLICITUDES || '');
+    
+    if (! adminChannel) {
+        console.error('❌ Canal de solicitudes no encontrado.  ID:', process.env.CHANNEL_ID_SOLICITUDES);
+        return res.status(500).json({ error: 'Canal no configurado' });
+    }
 
-        if (requiresSupport) {
-            embed.addFields({ name: '---------------------------------', value: '**🛠️ DETALLES DEL SOPORTE SOLICITADO**' });
-            if (needsCars) embed.addFields({ name: '🚗 Vehículos Solicitados', value: `\`\`\`${data.carsDesc}\`\`\``, inline: false });
-            if (needsMapping) embed.addFields({ name: '🏗️ Mapeo Solicitado', value: `\`\`\`${data.mappingDesc}\`\`\``, inline: false });
-            if (needsRadio) embed.addFields({ name: '📻 Emisora', value: '✅ Requiere configuración de Emisora. ', inline: false });
-        } else {
-            embed.addFields({ name: '✅ Estado del Soporte', value: 'No requiere soporte técnico.' });
-        }
+    if (! ('send' in adminChannel)) {
+        console.error('❌ El canal no es de texto');
+        return res.status(500).json({ error: 'Canal inválido' });
+    }
 
-        const attachments = [];
-        if (newEvent.flyerUrl) {
-            attachments.push({ attachment: newEvent.flyerUrl, name: 'flyer.png' });
-            embed.setImage('attachment://flyer.png');
-        }
-
-        const mappingFilesArray = newEvent.mappingFiles ?  newEvent.mappingFiles.split(',').filter((f: string) => f) : [];
-        if (mappingFilesArray.length > 0) {
-            mappingFilesArray.forEach((p: string, i: number) => {
-                attachments.push({ attachment: p, name: `mapeo-${i+1}.png` });
-            });
-            embed.addFields({ name: '📂 Archivos de Mapeo', value:  `Se han adjuntado ${mappingFilesArray.length} imágenes de referencia.` });
-        }
-
-        const row = new ActionRowBuilder<typeof ButtonBuilder>().addComponents(
-            new ButtonBuilder().setCustomId(`accept_${newEvent.id}`).setLabel('Aceptar').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`reject_${newEvent.id}`).setLabel('Rechazar').setStyle(ButtonStyle. Danger)
+    const dateObj = dayjs. utc(evt.eventDate);
+    
+    const embed = new EmbedBuilder()
+        .setTitle(requiresSupport ? '🚨 SOLICITUD CON SOPORTE TÉCNICO' : '📢 Nueva Solicitud Estándar')
+        .setColor(requiresSupport ? 0xFF0000 : 0xFFA500)
+        .addFields(
+            { name: '👤 Usuario', value: `<@${data.userId}>`, inline: true },
+            { name: '📅 Fecha (UTC)', value: dateObj.format('DD/MM/YYYY HH: mm'), inline: true },
+            { name: '📝 Título', value: evt.title, inline: false },
+            { name: '📄 Descripción del Evento', value: evt.description, inline: false }
         );
 
-        await adminChannel.send({ embeds: [embed], files: attachments, components: [row] });
+    if (requiresSupport) {
+        embed.addFields({ name: '---------------------------------', value: '**🛠️ DETALLES DEL SOPORTE SOLICITADO**' });
+        if (evt.needsCars && evt.carsDesc) {
+            embed.addFields({ name: '🚗 Vehículos Solicitados', value: `\`\`\`${evt.carsDesc}\`\`\``, inline: false });
+        }
+        if (evt.needsMapping && evt.mappingDesc) {
+            embed.addFields({ name: '🏗️ Mapeo Solicitado', value: `\`\`\`${evt.mappingDesc}\`\`\``, inline: false });
+        }
+        if (evt.needsRadio) {
+            embed.addFields({ name: '📻 Emisora', value: '✅ Requiere configuración de Emisora. ', inline: false });
+        }
+    } else {
+        embed.addFields({ name: '✅ Estado del Soporte', value: 'No requiere soporte técnico.' });
     }
+
+    // ✅ CONSTRUIR RUTAS DE ARCHIVOS CORRECTAMENTE
+    const attachments = [];
     
-    res.json({ success: true });
+    if (evt.flyerUrl) {
+        // Eliminar el primer "/" si existe
+        let relativePath = evt.flyerUrl. startsWith('/') ? evt.flyerUrl.substring(1) : evt.flyerUrl;
+        
+        // Construir ruta absoluta
+        const absolutePath = path.join(process.cwd(), 'public', relativePath);
+        
+        console.log('📂 FlyerUrl original:', evt.flyerUrl);
+        console.log('📂 Ruta relativa:', relativePath);
+        console.log('📂 Ruta absoluta:', absolutePath);
+        console.log('📂 ¿Existe?:', fs.existsSync(absolutePath));
+        
+        if (fs.existsSync(absolutePath)) {
+            attachments.push({ attachment: absolutePath, name: 'flyer.png' });
+            embed.setImage('attachment://flyer.png');
+            console.log('✅ Flyer agregado a attachments');
+        } else {
+            console.error('❌ Flyer no encontrado en:', absolutePath);
+        }
+    }
+
+    const mappingFilesArray = evt.mappingFiles ?  evt.mappingFiles.split(',').filter((f: string) => f.trim()) : [];
+    
+    if (mappingFilesArray.length > 0) {
+        console.log(`📂 Procesando ${mappingFilesArray.length} archivos de mapeo`);
+        
+        mappingFilesArray.forEach((p: string, i: number) => {
+            let relativePath = p. startsWith('/') ? p.substring(1) : p;
+            const absolutePath = path.join(process.cwd(), 'public', relativePath);
+            
+            console.log(`📂 Mapeo ${i+1} - Ruta: `, absolutePath);
+            console.log(`📂 Mapeo ${i+1} - ¿Existe?: `, fs.existsSync(absolutePath));
+            
+            if (fs.existsSync(absolutePath)) {
+                attachments.push({ attachment: absolutePath, name:  `mapeo-${i+1}.png` });
+                console.log(`✅ Mapeo ${i+1} agregado`);
+            } else {
+                console.error(`❌ Mapeo ${i+1} no encontrado`);
+            }
+        });
+        
+        if (mappingFilesArray.length > 0) {
+            embed.addFields({ 
+                name: '📂 Archivos de Mapeo', 
+                value: `Se solicitaron ${mappingFilesArray.length} archivo(s) de mapeo.` 
+            });
+        }
+    }
+
+    const row = new ActionRowBuilder<typeof ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(`accept_${evt.id}`).setLabel('Aceptar').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`reject_${evt.id}`).setLabel('Rechazar').setStyle(ButtonStyle. Danger)
+    );
+
+    try {
+        console.log(`📤 Enviando mensaje a Discord con ${attachments.length} archivo(s)...`);
+        await adminChannel.send({ embeds: [embed], files: attachments, components: [row] });
+        console.log('✅ Mensaje enviado a Discord exitosamente');
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Error al enviar mensaje a Discord:', error);
+        res.status(500).json({ error: 'Error al enviar a Discord' });
+    }
 });
 
 // --- INTERACCIONES DISCORD ---
@@ -216,10 +218,10 @@ client.on('interactionCreate', async (interaction) => {
         const eventId = parseInt(eventIdStr);
         
         // Get event from Prisma
-        const evt = await prisma.event.findUnique({ where: { id: eventId } });
+        const evt = await prisma.event.findUnique({ where: { id:  eventId } });
         
         if (!evt && action !== 'close') {
-            return interaction.reply({ content: '❌ Evento no encontrado o expirado.', ephemeral: true });
+            return interaction.reply({ content: '❌ Evento no encontrado o expirado. ', ephemeral: true });
         }
 
         // RECHAZAR
@@ -230,124 +232,175 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.showModal(modal);
         }
 
-        // ACEPTAR
+                // ACEPTAR
         if (action === 'accept' && evt) {
-            // Update event status to APPROVED
-            await prisma.event. update({
-                where: { id: eventId },
-                data:  { status: EventStatus.APPROVED }
-            });
+            // ✅ Diferir la respuesta inmediatamente (tenemos 15 minutos después)
+            await interaction.deferReply({ ephemeral: true });
 
-            // 1. PUBLICAR EN ANUNCIOS
-            const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS || '');
-            if (publicChannel && 'send' in publicChannel) {
-                const timestamp = Math.floor(evt.eventDate.getTime() / 1000);
-                const publicEmbed = new EmbedBuilder()
-                    .setTitle(`📅 Nuevo Evento:  ${evt.title}`)
-                    .setDescription(evt.description)
-                    . setColor(0x5865F2) 
-                    .addFields(
-                        { name: '🕒 Fecha y Hora', value: `<t:${timestamp}:F>\n(<t:${timestamp}:R>)`, inline: false },
-                        { name: '👥 Interesados', value: '0 personas', inline: false }
-                    )
-                    . setFooter({ text: `Evento solicitado al Equipo de Eventos del PM. ` });
-
-                const filesToSend = [];
-                if (evt.flyerUrl) {
-                    filesToSend. push({ attachment: evt.flyerUrl, name: 'flyer.png' });
-                    publicEmbed.setImage('attachment://flyer.png'); 
-                }
-
-                const interestBtn = new ActionRowBuilder<typeof ButtonBuilder>().addComponents(
-                    new ButtonBuilder().setCustomId(`interested_${evt.id}`).setLabel('Me interesa').setEmoji('⭐').setStyle(ButtonStyle.Primary)
-                );
-
-                const sentMsg = await publicChannel.send({ embeds: [publicEmbed], files: filesToSend, components: [interestBtn] });
-                
-                // Update event with publicMessageId
+            try {
+                // Update event status to APPROVED
                 await prisma. event.update({
                     where: { id: eventId },
-                    data: { publicMessageId: sentMsg.id }
+                    data: { status: EventStatus.APPROVED }
                 });
-            }
 
-            // 2. CREAR TICKET SI ES NECESARIO
-            const requiresSupport = evt.needsCars || evt.needsRadio || evt.needsMapping;
-            let ticketMention = "No requiere ticket. ";
+                // 1.  PUBLICAR EN ANUNCIOS
+                                // 1. PUBLICAR EN ANUNCIOS
+                const publicChannel = client.channels.cache. get(process.env.CHANNEL_ID_ANUNCIOS || '');
+                if (publicChannel && 'send' in publicChannel) {
+                    const timestamp = Math.floor(evt.eventDate.getTime() / 1000);
+                    const publicEmbed = new EmbedBuilder()
+                        .setTitle(`📅 Nuevo Evento:  ${evt.title}`)
+                        .setDescription(evt.description)
+                        .setColor(0x5865F2) 
+                        .addFields(
+                            { name: '🕒 Fecha y Hora', value: `<t:${timestamp}:F>\n(<t: ${timestamp}:R>)`, inline: false },
+                            { name: '👥 Interesados', value: '0 personas', inline: false }
+                        )
+                        .setFooter({ text: `Evento solicitado al Equipo de Eventos del PM. ` });
 
-            if (requiresSupport && process.env.CATEGORY_ID_TICKETS && interaction.guild) {
-                const guild = interaction.guild;
-                try {
-                    // Crear canal ticket-evento-ID
-                    const ticketChannel = await guild.channels.create({
-                        name: `ticket-evento-${eventId}`,
-                        type: ChannelType.GuildText,
-                        parent: process.env.CATEGORY_ID_TICKETS,
-                        permissionOverwrites: [
+                    const filesToSend = [];
+                    if (evt.flyerUrl) {
+                        let relativePath = evt.flyerUrl.startsWith('/') ? evt.flyerUrl.substring(1) : evt.flyerUrl;
+                        const absolutePath = path.join(process. cwd(), 'public', relativePath);
+                        
+                        if (fs.existsSync(absolutePath)) {
+                            filesToSend.push({ attachment: absolutePath, name: 'flyer.png' });
+                            publicEmbed.setImage('attachment://flyer.png');
+                        }
+                    }
+
+                    const interestBtn = new ActionRowBuilder<typeof ButtonBuilder>().addComponents(
+                        new ButtonBuilder().setCustomId(`interested_${evt.id}`).setLabel('Me interesa').setEmoji('⭐').setStyle(ButtonStyle.Primary)
+                    );
+
+                    const sentMsg = await publicChannel.send({ embeds: [publicEmbed], files:  filesToSend, components: [interestBtn] });
+                    
+                    // ✅ GUARDAR LA URL DEL ATTACHMENT ENVIADO
+                    let publicImageUrl = null;
+                    if (sentMsg.attachments.size > 0) {
+                        const attachment = sentMsg.attachments.first();
+                        if (attachment) {
+                            publicImageUrl = attachment.url;
+                        }
+                    }
+                    
+                    await prisma.event.update({
+                        where: { id: eventId },
+                        data: { 
+                            publicMessageId: sentMsg.id,
+                            publicImageUrl: publicImageUrl  // ✅ Guardar URL pública de Discord
+                        }
+                    });
+                }
+
+                // 2. CREAR TICKET SI ES NECESARIO
+                                // 2. CREAR TICKET SI ES NECESARIO
+                const requiresSupport = evt.needsCars || evt.needsRadio || evt.needsMapping;
+                let ticketMention = "No requiere ticket. ";
+
+                if (requiresSupport && process.env.CATEGORY_ID_TICKETS && interaction.guild) {
+                    const guild = interaction.guild;
+                    
+                    const eventCreator = await prisma.user. findUnique({
+                        where: { id: evt.creatorId }
+                    });
+
+                    if (!eventCreator) {
+                        console.error('❌ No se encontró el creador del evento');
+                        ticketMention = "Error: Usuario no encontrado. ";
+                    } else {
+                        // ✅ Preparar permisos del canal
+                        const permissions = [
                             {
                                 id: guild.id,
                                 deny: [PermissionFlagsBits.ViewChannel],
                             },
                             {
-                                id: evt.creatorId. toString(),
-                                allow: [PermissionFlagsBits. ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits. AttachFiles],
+                                id: eventCreator. discordId,
+                                allow:  [PermissionFlagsBits.ViewChannel, PermissionFlagsBits. SendMessages, PermissionFlagsBits. AttachFiles],
                             },
                             {
-                                id: interaction.user.id,
+                                id: interaction. user.id,
                                 allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
                             },
                             {
                                 id: client.user! .id,
                                 allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits. ManageChannels],
                             }
-                        ],
-                    });
-                    
-                    ticketMention = ticketChannel.toString();
+                        ];
 
-                    // Update event with ticketChannelId
-                    await prisma.event.update({
-                        where: { id: eventId },
-                        data: { ticketChannelId: ticketChannel.id }
-                    });
+                        // ✅ Si hay rol de soporte configurado, darle permisos también
+                        if (process.env.SUPPORT_ROLE_ID) {
+                            permissions.push({
+                                id: process. env.SUPPORT_ROLE_ID,
+                                allow: [PermissionFlagsBits. ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles],
+                            });
+                        }
 
-                    // Crear botón de Cerrar Ticket
-                    const closeBtnRow = new ActionRowBuilder<typeof ButtonBuilder>().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('close_ticket')
-                            . setLabel('Cerrar Ticket')
-                            .setStyle(ButtonStyle.Danger)
-                            .setEmoji('🗑️')
-                    );
+                        const ticketChannel = await guild.channels.create({
+                            name: `ticket-evento-${eventId}`,
+                            type: ChannelType.GuildText,
+                            parent: process.env.CATEGORY_ID_TICKETS,
+                            permissionOverwrites: permissions,
+                        });
+                        
+                        ticketMention = ticketChannel.toString();
 
-                    // Reconstruir embed básico para contexto en el ticket
-                    const contextEmbed = new EmbedBuilder()
-                         .setTitle(`Soporte para:  ${evt.title}`)
-                         .setDescription(`Canal creado para coordinar:  \n${evt.needsCars ? '• Coches\n' : ''}${evt.needsMapping ? '• Mapeo\n' : ''}${evt.needsRadio ? '• Radio' : ''}`)
-                         .setColor(0xFFA500);
+                        await prisma.event.update({
+                            where: { id: eventId },
+                            data: { ticketChannelId: ticketChannel.id }
+                        });
 
-                    // Enviar mensaje de bienvenida en el nuevo canal con el botón
-                    await ticketChannel.send({
-                        content: `👋 Hola <@${evt.creatorId}>,\n\nEste es tu canal privado de soporte. Un administrador te atenderá pronto.\nCuando finalice el soporte, pulsa el botón para borrar el chat. `,
-                        embeds: [contextEmbed],
-                        components: [closeBtnRow]
-                    });
+                        const closeBtnRow = new ActionRowBuilder<typeof ButtonBuilder>().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('close_ticket')
+                                . setLabel('Cerrar Ticket')
+                                .setStyle(ButtonStyle.Danger)
+                                .setEmoji('🗑️')
+                        );
 
-                } catch (error) {
-                    console.error("Error creando canal de ticket:", error);
-                    ticketMention = "Error al crear ticket. ";
+                        const contextEmbed = new EmbedBuilder()
+                            .setTitle(`Soporte para:  ${evt.title}`)
+                            .setDescription(`Canal creado para coordinar:\n${evt.needsCars ? '• Coches\n' : ''}${evt.needsMapping ? '• Mapeo\n' : ''}${evt.needsRadio ? '• Radio' : ''}`)
+                            .setColor(0xFFA500);
+
+                        // ✅ Construir el mensaje con menciones
+                        let mentions = `👋 Hola <@${eventCreator.discordId}>`;
+                        
+                        if (process.env.SUPPORT_ROLE_ID) {
+                            mentions += ` y <@&${process.env. SUPPORT_ROLE_ID}>`;
+                        }
+
+                        mentions += `,\n\nEste es el canal de soporte para el evento **${evt.title}**.\nUn miembro del equipo os atenderá pronto.\n\nCuando finalice el soporte, pulsa el botón de abajo para cerrar el ticket.`;
+
+                        await ticketChannel.send({
+                            content: mentions,
+                            embeds: [contextEmbed],
+                            components: [closeBtnRow]
+                        });
+                    }
                 }
-            }
 
-            await interaction.reply({ content: `✅ Evento publicado en anuncios.\n🎫 Estado Ticket: ${ticketMention}`, ephemeral: true });
-            
-            // Editar mensaje original para quitar botones
-            if ('edit' in interaction. message) {
-                await interaction. message.edit({ components: [] });
+                // ✅ Editar la respuesta diferida
+                await interaction.editReply({ 
+                    content: `✅ Evento publicado en anuncios.\n🎫 Estado Ticket: ${ticketMention}`
+                });
+                
+                // Editar mensaje original para quitar botones
+                if ('edit' in interaction. message) {
+                    await interaction.message.edit({ components: [] });
+                }
+
+            } catch (error) {
+                console.error('Error procesando aceptación:', error);
+                await interaction.editReply({ 
+                    content: '❌ Hubo un error al procesar la solicitud.'
+                });
             }
         }
 
-        // ME INTERESA
+                // ME INTERESA
         if (action === 'interested' && evt) {
             const userId = interaction.user.id;
             const subscribers = parseSubscribers(evt.subscribers);
@@ -360,34 +413,42 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 });
             } else {
-                 return interaction.reply({ content: 'Ya estabas apuntado. ', ephemeral: true });
+                return interaction.reply({ content: 'Ya estabas apuntado. ', ephemeral: true });
             }
 
-            const publicChannel = client.channels.cache. get(process.env.CHANNEL_ID_ANUNCIOS || '');
+            const publicChannel = client.channels.cache.get(process.env. CHANNEL_ID_ANUNCIOS || '');
             if (publicChannel && 'messages' in publicChannel && evt.publicMessageId) {
                 try {
                     const msgToEdit = await publicChannel.messages.fetch(evt.publicMessageId);
                     const oldEmbed = msgToEdit.embeds[0];
                     const newEmbed = EmbedBuilder.from(oldEmbed);
                     
-                    if (evt.flyerUrl) newEmbed.setImage('attachment://flyer.png');
-
+                    // ✅ Obtener el evento actualizado con publicImageUrl
                     const updatedEvent = await prisma.event.findUnique({ where: { id: eventId } });
-                    const updatedSubscribers = parseSubscribers(updatedEvent?. subscribers);
+                    
+                    // ✅ Si hay URL pública guardada, usarla
+                    if (updatedEvent?. publicImageUrl) {
+                        newEmbed.setImage(updatedEvent.publicImageUrl);
+                    }
+
+                    const updatedSubscribers = parseSubscribers(updatedEvent?.subscribers);
                     const count = updatedSubscribers.length;
                     const fieldIndex = newEmbed.data.fields?. findIndex(f => f.name. includes('Interesados'));
                     if (fieldIndex !== undefined && fieldIndex !== -1 && newEmbed.data.fields) {
                         newEmbed. data.fields[fieldIndex].value = `${count} persona${count === 1 ? '' : 's'}`;
                     }
                     
+                    // ✅ NO enviar archivos, solo el embed actualizado
                     await msgToEdit.edit({ embeds: [newEmbed] });
-                } catch (err) { console.error(err); }
+                } catch (err) { 
+                    console.error('Error actualizando contador:', err); 
+                }
             }
             await interaction.reply({ content: `✅ Te has apuntado a **${evt.title}**. `, ephemeral: true });
         }
     }
 
-    if (interaction.isModalSubmit() && interaction.customId.startsWith('modalReject_')) {
+    if (interaction.isModalSubmit() && interaction.customId. startsWith('modalReject_')) {
         const eventIdStr = interaction.customId.split('_')[1];
         const eventId = parseInt(eventIdStr);
         const reason = interaction.fields.getTextInputValue('reason');
@@ -395,7 +456,7 @@ client.on('interactionCreate', async (interaction) => {
         await prisma.event.update({
             where: { id: eventId },
             data: {
-                status: EventStatus. REJECTED,
+                status: EventStatus.REJECTED,
                 rejectionReason: reason
             }
         });
@@ -426,7 +487,7 @@ setInterval(async () => {
 
     const eventsToNotify = await prisma.event. findMany({
         where: {
-            status: EventStatus.APPROVED,
+            status: EventStatus. APPROVED,
             startNotified: false
         }
     });
@@ -436,7 +497,7 @@ setInterval(async () => {
         const diffSeconds = timestamp - nowUnix;
         
         if (diffSeconds <= 60 && diffSeconds > -120) {
-            const publicChannel = client.channels.cache.get(process.env.CHANNEL_ID_ANUNCIOS || '');
+            const publicChannel = client.channels.cache.get(process.env. CHANNEL_ID_ANUNCIOS || '');
             if (publicChannel && 'send' in publicChannel) {
                 const subscribers = parseSubscribers(evt. subscribers);
                 const startEmbed = new EmbedBuilder()
@@ -446,7 +507,7 @@ setInterval(async () => {
                     .setTimestamp();
 
                 await publicChannel.send({ 
-                    content: `📢 ¡Atención! El evento de <@${evt.creatorId}> comienza ahora. `, 
+                    content: `📢 ¡Atención! El evento comienza ahora. `, 
                     embeds: [startEmbed] 
                 });
 
