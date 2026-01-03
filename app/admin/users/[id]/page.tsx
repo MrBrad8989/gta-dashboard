@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
 import { FaArrowLeft, FaUserTag, FaTicketAlt, FaGavel, FaEnvelope } from "react-icons/fa";
-import { getDiscordAvatarUrl } from "@/lib/avatarHelper";
+import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
 
 // Definimos el tipo de las props correctamente para Next.js 15/16
 interface Props {
@@ -51,7 +51,7 @@ export default async function UserDetailPage({ params }: Props) {
           alt={user.name || 'Usuario'}
           className="w-24 h-24 rounded-full border-4 border-indigo-100 dark:border-gray-700"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discordId) % 5}.png`;
+            (e.target as HTMLImageElement).src = getDefaultDiscordAvatar(user.discordId);
           }}
         />
         <div>

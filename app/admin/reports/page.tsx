@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
 import { FaClipboardList, FaCheckCircle, FaGavel, FaLifeRing, FaHandPaper, FaUserShield, FaArrowRight } from "react-icons/fa";
 import { claimTicket, assignTicketManually } from "@/app/actions/ticketActions";
-import { getDiscordAvatarUrl } from "@/lib/avatarHelper";
+import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
 
 export default async function AdminReportsPage() {
   // @ts-ignore
@@ -130,7 +130,7 @@ export default async function AdminReportsPage() {
                                   onError={(e) => {
                                     const target = e.target as HTMLImageElement;
                                     const discordId = ticket.assignedTo?.discordId || '0';
-                                    target.src = `https://cdn.discordapp.com/embed/avatars/${parseInt(discordId) % 5}.png`;
+                                    target.src = getDefaultDiscordAvatar(discordId);
                                   }}
                                 />
                                 <span className={`text-xs font-bold ${isMine ? 'text-indigo-600' : 'text-gray-700 dark:text-gray-300'}`}>

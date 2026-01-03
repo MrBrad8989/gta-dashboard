@@ -6,7 +6,7 @@ import { FaPaperPlane, FaLock, FaUnlock, FaUserPlus, FaUsers } from "react-icons
 import { redirect } from "next/navigation";
 import AttachmentPreview from "@/components/AttachmentPreview";
 import TicketMessageForm from "@/components/TicketMessageForm";
-import { getDiscordAvatarUrl } from "@/lib/avatarHelper";
+import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -178,7 +178,7 @@ export default async function TicketDetailPage(props: PageProps) {
                                alt={msg.author.name || 'Usuario'}
                                className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600"
                                onError={(e) => {
-                                 (e.target as HTMLImageElement).src = `https://cdn.discordapp.com/embed/avatars/${parseInt(msg.author.discordId) % 5}.png`;
+                                 (e.target as HTMLImageElement).src = getDefaultDiscordAvatar(msg.author.discordId);
                                }}
                              />
                         </div>

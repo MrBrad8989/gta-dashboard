@@ -18,7 +18,7 @@ import {
   FaShieldAlt,
   FaHeadset
 } from "react-icons/fa";
-import { getDiscordAvatarUrl } from "@/lib/avatarHelper";
+import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
 
 export default function Sidebar() {
   const { data: session } = useSession();
@@ -62,7 +62,7 @@ export default function Sidebar() {
           alt={session.user.name || 'Usuario'}
           className="w-10 h-10 rounded-full border-2 border-indigo-500"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://cdn.discordapp.com/embed/avatars/${parseInt(session.user.discordId) % 5}.png`;
+            (e.target as HTMLImageElement).src = getDefaultDiscordAvatar(session.user.discordId);
           }}
         />
         <div className="overflow-hidden">

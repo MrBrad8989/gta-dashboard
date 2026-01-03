@@ -34,12 +34,13 @@ export const authOptions: NextAuthOptions = {
       if (token. discordId) {
         const dbUser = await prisma.user.findUnique({
           where: { discordId: token. discordId as string },
-          select: { role: true, id: true },
+          select: { role: true, id: true, avatar: true },
         });
 
         if (dbUser) {
           token.role = dbUser.role;
           token.userId = dbUser.id.toString();
+          token.avatar = dbUser.avatar;
         }
       }
 
@@ -51,16 +52,7 @@ export const authOptions: NextAuthOptions = {
         session.user. id = token.userId as string;
         session.user.role = token.role as string;
         session.user.discordId = token.discordId as string;
-        
-        // ✅ Añadir avatar para el Sidebar
-        const dbUser = await prisma.user.findUnique({
-          where: { discordId: token.discordId as string },
-          select: { avatar: true }
-        });
-        
-        if (dbUser) {
-          session.user.image = dbUser.avatar;
-        }
+        session.user.image = token.avatar as string | undefined;
       }
       return session;
     },
