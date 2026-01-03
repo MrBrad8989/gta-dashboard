@@ -50,7 +50,11 @@ export default async function TicketDetailPage(props: PageProps) {
 
   // Bindings
   const sendMessageWithId = sendMessage.bind(null, ticket.id);
-  const closeTicket = updateTicketStatus.bind(null, ticket.id, 'CLOSED');
+  const closeTicketWithReason = async (formData: FormData) => {
+    "use server";
+    const reason = formData.get('closeReason') as string;
+    await updateTicketStatus(ticket.id, 'CLOSED', reason || 'Sin especificar');
+  };
   const reopenTicket = updateTicketStatus.bind(null, ticket.id, 'OPEN');
   const addUserWithId = addUserToTicket.bind(null, ticket.id); // <--- Binding para añadir usuario
 
@@ -113,28 +117,15 @@ export default async function TicketDetailPage(props: PageProps) {
               {/* BOTONES DE ESTADO */}
               {ticket.status !== 'CLOSED' ? (
                   <>
-                    {/* Botón Cerrar (con modal para motivo) */}
-                    <form 
-                      action={async (formData: FormData) => {
-                        'use server';
-                        const reason = formData.get('closeReason') as string;
-                        await updateTicketStatus(ticket.id, 'CLOSED', reason || 'Sin especificar');
-                      }}
-                    >
+                    {/* Botón Cerrar (con input para motivo) */}
+                    <form action={closeTicketWithReason} className="flex items-center gap-2">
+                      <input 
+                        name="closeReason" 
+                        placeholder="Motivo de cierre (opcional)" 
+                        className="bg-gray-100 dark:bg-gray-700 text-sm px-2 py-1 rounded outline-none w-48 text-gray-700 dark:text-gray-200"
+                      />
                       <button 
-                        type="button"
-                        onClick={(e) => {
-                          const reason = prompt('Motivo de cierre (opcional):');
-                          if (reason !== null) {
-                            const form = (e.target as HTMLButtonElement).closest('form');
-                            const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = 'closeReason';
-                            input.value = reason;
-                            form?.appendChild(input);
-                            form?.requestSubmit();
-                          }
-                        }}
+                        type="submit"
                         className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-bold shadow"
                       >
                         <FaLock /> Cerrar Ticket

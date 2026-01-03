@@ -41,7 +41,7 @@ export default async function AdminReportsPage() {
   });
 
   // 3. CARGAMOS LISTA DE STAFF (Solo si soy Admin, para el desplegable)
-  let staffMembers = [];
+  let staffMembers: { id: number; name: string | null; role: string }[] = [];
   if (isSuperAdmin) {
       staffMembers = await prisma.user.findMany({
           where: { role: { in: ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'] } },
@@ -128,7 +128,9 @@ export default async function AdminReportsPage() {
                                   alt={ticket.assignedTo.name || 'Staff'}
                                   className="w-6 h-6 rounded-full border border-gray-600"
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = `https://cdn.discordapp.com/embed/avatars/${parseInt(ticket.assignedTo.discordId) % 5}.png`;
+                                    const target = e.target as HTMLImageElement;
+                                    const discordId = ticket.assignedTo?.discordId || '0';
+                                    target.src = `https://cdn.discordapp.com/embed/avatars/${parseInt(discordId) % 5}.png`;
                                   }}
                                 />
                                 <span className={`text-xs font-bold ${isMine ? 'text-indigo-600' : 'text-gray-700 dark:text-gray-300'}`}>
