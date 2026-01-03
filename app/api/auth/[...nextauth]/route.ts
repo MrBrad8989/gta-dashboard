@@ -9,6 +9,7 @@ declare module "next-auth" {
       id: string;
       role: string;
       discordId: string;
+      image?: string;
     } & DefaultSession["user"];
   }
 }
@@ -50,6 +51,16 @@ export const authOptions: NextAuthOptions = {
         session.user. id = token.userId as string;
         session.user.role = token.role as string;
         session.user.discordId = token.discordId as string;
+        
+        // ✅ Añadir avatar para el Sidebar
+        const dbUser = await prisma.user.findUnique({
+          where: { discordId: token.discordId as string },
+          select: { avatar: true }
+        });
+        
+        if (dbUser) {
+          session.user.image = dbUser.avatar;
+        }
       }
       return session;
     },

@@ -6,6 +6,7 @@ import { FaPaperPlane, FaLock, FaUnlock, FaUserPlus, FaUsers } from "react-icons
 import { redirect } from "next/navigation";
 import AttachmentPreview from "@/components/AttachmentPreview";
 import TicketMessageForm from "@/components/TicketMessageForm";
+import { getDiscordAvatarUrl } from "@/lib/avatarHelper";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -93,7 +94,7 @@ export default async function TicketDetailPage(props: PageProps) {
         </div>
 
         {/* --- HERRAMIENTAS DE ADMIN --- */}
-        {currentUserRole === 'ADMIN' && (
+        {['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'].includes(currentUserRole) && (
           <div className="flex flex-wrap items-center gap-2">
               
               {/* FORMULARIO: AÑADIR USUARIO */}
@@ -111,11 +112,35 @@ export default async function TicketDetailPage(props: PageProps) {
 
               {/* BOTONES DE ESTADO */}
               {ticket.status !== 'CLOSED' ? (
-                  <form action={closeTicket}>
-                      <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-bold shadow">
-                          <FaLock /> Cerrar
+                  <>
+                    {/* Botón Cerrar (con modal para motivo) */}
+                    <form 
+                      action={async (formData: FormData) => {
+                        'use server';
+                        const reason = formData.get('closeReason') as string;
+                        await updateTicketStatus(ticket.id, 'CLOSED', reason || 'Sin especificar');
+                      }}
+                    >
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          const reason = prompt('Motivo de cierre (opcional):');
+                          if (reason !== null) {
+                            const form = (e.target as HTMLButtonElement).closest('form');
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'closeReason';
+                            input.value = reason;
+                            form?.appendChild(input);
+                            form?.requestSubmit();
+                          }
+                        }}
+                        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-bold shadow"
+                      >
+                        <FaLock /> Cerrar Ticket
                       </button>
-                  </form>
+                    </form>
+                  </>
               ) : (
                   <form action={reopenTicket}>
                       <button className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg text-sm font-bold shadow">
@@ -157,7 +182,14 @@ export default async function TicketDetailPage(props: PageProps) {
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`flex max-w-[85%] md:max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
                         <div className="flex-shrink-0 mt-1">
-                             <img src={msg.author.avatar || '/default-avatar.png'} className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600" />
+                             <img 
+                               src={getDiscordAvatarUrl(msg.author.discordId, msg.author.avatar)} 
+                               alt={msg.author.name || 'Usuario'}
+                               className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600"
+                               onError={(e) => {
+                                 (e.target as HTMLImageElement).src = `https://cdn.discordapp.com/embed/avatars/${parseInt(msg.author.discordId) % 5}.png`;
+                               }}
+                             />
                         </div>
                         <div className={`p-3 md:p-4 rounded-2xl shadow-sm text-sm ${
                             isMe 

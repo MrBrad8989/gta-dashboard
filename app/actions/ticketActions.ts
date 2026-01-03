@@ -161,7 +161,11 @@ export async function sendMessage(ticketId: number, formData: FormData) {
 }
 
 // 3. CAMBIAR ESTADO (STAFF)
-export async function updateTicketStatus(ticketId: number, newStatus: string) {
+export async function updateTicketStatus(
+  ticketId: number, 
+  newStatus: string, 
+  closeReason?: string
+) {
     // @ts-ignore
     const session = await getServerSession(authOptions);
     const allowedRoles = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'];
@@ -174,6 +178,17 @@ export async function updateTicketStatus(ticketId: number, newStatus: string) {
         where: { id: ticketId },
         data: { status: newStatus as any }
     });
+
+    // Si se cierra con motivo, añadir mensaje del sistema
+    if (newStatus === 'CLOSED' && closeReason) {
+      await prisma.ticketMessage.create({
+        data: {
+          content: `🔒 SISTEMA: Ticket cerrado por ${session.user.name}.\n**Motivo:** ${closeReason}`,
+          ticketId: ticketId,
+          authorId: parseInt(session.user.id),
+        }
+      });
+    }
 
     revalidatePath(`/tickets/${ticketId}`);
     revalidatePath("/admin/reports");
