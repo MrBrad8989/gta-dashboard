@@ -184,7 +184,7 @@ export default function UsersPage() {
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-750 transition-colors">
+                  <tr key={user.id} className="hover:bg-gray-700 transition-colors">
                     <td className="px-6 py-4">
                       <img
                         src={getAvatarUrl(user)}

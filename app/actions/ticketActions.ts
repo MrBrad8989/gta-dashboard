@@ -208,12 +208,15 @@ export async function updateTicketStatus(
     });
 
     // ✅ Notificar a todos los participantes + creador
+    const uniqueUserIds = new Set<number>();
     const usersToNotify = [
       ticket.creator,
       ...ticket.participants
-    ].filter((user, index, self) => 
-      self.findIndex(u => u.id === user.id) === index // Sin duplicados
-    );
+    ].filter(user => {
+      if (uniqueUserIds.has(user.id)) return false;
+      uniqueUserIds.add(user.id);
+      return true;
+    });
 
     for (const user of usersToNotify) {
       await sendTicketNotification({
@@ -238,12 +241,15 @@ export async function updateTicketStatus(
     });
 
     // ✅ Notificar a participantes
+    const uniqueUserIds = new Set<number>();
     const usersToNotify = [
       ticket.creator,
       ...ticket.participants
-    ].filter((user, index, self) => 
-      self.findIndex(u => u.id === user.id) === index
-    );
+    ].filter(user => {
+      if (uniqueUserIds.has(user.id)) return false;
+      uniqueUserIds.add(user.id);
+      return true;
+    });
 
     for (const user of usersToNotify) {
       await sendTicketNotification({
