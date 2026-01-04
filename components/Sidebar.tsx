@@ -103,7 +103,7 @@ export default function Sidebar() {
                         <span className="text-lg"><FaMapMarkedAlt /></span>
                         <span className="text-sm font-medium">Mapa Global</span>
                     </Link>
-                     <Link href="/tools/discord-embed" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/tools/discord-embed' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover: text-white"}`}>
+                     <Link href="/tools/discord-embed" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/tools/discord-embed' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white shadow-sm" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
                         <span className="text-lg"><FaDiscord /></span>
                         <span className="text-sm font-medium">Generador Embeds</span>
                     </Link>

@@ -32,11 +32,53 @@ export default async function UserDetailPage({ params }: Props) {
     where: { id: userId },
     include: {
       createdTickets: { orderBy: { createdAt: 'desc' } },  // Tickets que abrió
-      receivedReports: { orderBy: { createdAt: 'desc' }, include: { creator: true } } // Reportes contra él
+      receivedReports: { orderBy: { createdAt: 'desc' }, include: { creator: true } }, // Reportes contra él
+      assignedTickets: { 
+        orderBy: { createdAt: 'desc' },
+        include: { creator: true }
+      } // Tickets asignados a él (si es staff)
     }
   });
 
   if (!user) return <div className="p-8 font-bold">Usuario no encontrado</div>;
+
+  // Verificar si es staff
+  const isStaff = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'].includes(user.role);
+
+  // Calcular estadísticas mensuales si es staff
+  let monthlyStats = null;
+  if (isStaff) {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const ticketsClaimedThisMonth = await prisma.ticket.count({
+      where: {
+        assignedToId: userId,
+        createdAt: { gte: firstDayOfMonth }
+      }
+    });
+
+    const ticketsClosedThisMonth = await prisma.ticket.count({
+      where: {
+        assignedToId: userId,
+        status: 'CLOSED',
+        updatedAt: { gte: firstDayOfMonth }
+      }
+    });
+
+    const activeTicketsNow = await prisma.ticket.count({
+      where: {
+        assignedToId: userId,
+        status: { in: ['OPEN', 'IN_PROGRESS'] }
+      }
+    });
+
+    monthlyStats = {
+      claimed: ticketsClaimedThisMonth,
+      closed: ticketsClosedThisMonth,
+      active: activeTicketsNow
+    };
+  }
 
   return (
     <div className="p-8 space-y-8 max-w-6xl mx-auto">
@@ -63,6 +105,27 @@ export default async function UserDetailPage({ params }: Props) {
             </div>
         </div>
       </div>
+
+      {/* Estadísticas mensuales (solo staff) */}
+      {isStaff && monthlyStats && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-6 rounded-xl shadow border border-indigo-200 dark:border-indigo-800">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">📊 Estadísticas del Mes</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{monthlyStats.claimed}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Tickets Reclamados</div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{monthlyStats.closed}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Tickets Cerrados</div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{monthlyStats.active}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Tickets Activos</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
@@ -108,6 +171,43 @@ export default async function UserDetailPage({ params }: Props) {
         </div>
 
       </div>
+
+      {/* Tickets Asignados (solo staff) */}
+      {isStaff && (
+        <div>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+            <FaTicketAlt className="text-green-500" /> Tickets Asignados/Reclamados
+          </h2>
+          <div className="space-y-3">
+            {user.assignedTickets.length === 0 ? (
+              <p className="text-gray-400 italic">No tiene tickets asignados actualmente.</p>
+            ) : (
+              user.assignedTickets.map(ticket => (
+                <Link 
+                  key={ticket.id} 
+                  href={`/tickets/${ticket.id}`} 
+                  className="block bg-white dark:bg-gray-800 p-4 rounded border border-gray-200 dark:border-gray-700 hover:border-green-500 transition"
+                >
+                  <div className="flex justify-between">
+                    <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{ticket.title}</span>
+                    <span className={`text-xs font-mono px-2 rounded ${
+                      ticket.status === 'CLOSED' 
+                        ? 'bg-gray-100 dark:bg-gray-900 text-gray-500' 
+                        : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                    }`}>
+                      {ticket.status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs">
+                    <span className="text-gray-500">Creador: <b>{ticket.creator.name}</b></span>
+                    <span className="text-gray-400">{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
