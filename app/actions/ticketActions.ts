@@ -166,32 +166,99 @@ export async function updateTicketStatus(
   newStatus: string, 
   closeReason?: string
 ) {
-    // @ts-ignore
-    const session = await getServerSession(authOptions);
-    const allowedRoles = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'];
-    
-    if (!session || !allowedRoles.includes(session.user.role)) {
-        throw new Error("Acceso denegado.");
-    }
+  // @ts-ignore
+  const session = await getServerSession(authOptions);
+  const allowedRoles = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'];
+  
+  if (!session || !allowedRoles.includes(session.user.role)) {
+    throw new Error("Acceso denegado.");
+  }
 
-    await prisma.ticket.update({
-        where: { id: ticketId },
-        data: { status: newStatus as any }
+  await prisma.ticket.update({
+    where: { id: ticketId },
+    data: { status: newStatus as any }
+  });
+
+  // Obtener ticket con participantes
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    include: {
+      creator: true,
+      participants: true,
+      assignedTo: true
+    }
+  });
+
+  if (!ticket) return;
+
+  const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'http://localhost:3000';
+
+  // Si se cierra
+  if (newStatus === 'CLOSED') {
+    const message = closeReason 
+      ? `🔒 SISTEMA: Ticket cerrado por ${session.user.name}.\n**Motivo:** ${closeReason}`
+      : `🔒 SISTEMA: Ticket cerrado por ${session.user.name}.`;
+    
+    await prisma.ticketMessage.create({
+      data: {
+        content: message,
+        ticketId: ticketId,
+        authorId: parseInt(session.user.id),
+      }
     });
 
-    // Si se cierra con motivo, añadir mensaje del sistema
-    if (newStatus === 'CLOSED' && closeReason) {
-      await prisma.ticketMessage.create({
-        data: {
-          content: `🔒 SISTEMA: Ticket cerrado por ${session.user.name}.\n**Motivo:** ${closeReason}`,
-          ticketId: ticketId,
-          authorId: parseInt(session.user.id),
-        }
+    // ✅ Notificar a todos los participantes + creador
+    const usersToNotify = [
+      ticket.creator,
+      ...ticket.participants
+    ].filter((user, index, self) => 
+      self.findIndex(u => u.id === user.id) === index // Sin duplicados
+    );
+
+    for (const user of usersToNotify) {
+      await sendTicketNotification({
+        userId: user.id,
+        ticketId,
+        ticketTitle: ticket.title,
+        messagePreview: closeReason || 'El ticket ha sido cerrado',
+        senderName: session.user.name || 'Staff',
+        dashboardUrl
       });
     }
+  }
 
-    revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/admin/reports");
+  // Si se reabre
+  if (newStatus === 'OPEN') {
+    await prisma.ticketMessage.create({
+      data: {
+        content: `🔓 SISTEMA: Ticket reabierto por ${session.user.name}.`,
+        ticketId: ticketId,
+        authorId: parseInt(session.user.id),
+      }
+    });
+
+    // ✅ Notificar a participantes
+    const usersToNotify = [
+      ticket.creator,
+      ...ticket.participants
+    ].filter((user, index, self) => 
+      self.findIndex(u => u.id === user.id) === index
+    );
+
+    for (const user of usersToNotify) {
+      await sendTicketNotification({
+        userId: user.id,
+        ticketId,
+        ticketTitle: ticket.title,
+        messagePreview: 'El ticket ha sido reabierto',
+        senderName: session.user.name || 'Staff',
+        dashboardUrl
+      });
+    }
+  }
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/admin/reports");
 }
 
 // 4. AÑADIR USUARIO AL TICKET (SOLO ADMIN)
@@ -228,6 +295,24 @@ export async function addUserToTicket(ticketId: number, formData: FormData) {
       authorId: parseInt(session.user.id),
     }
   });
+
+  // ✅ Notificar al usuario añadido
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    select: { title: true, id: true }
+  });
+
+  if (ticket) {
+    const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'http://localhost:3000';
+    await sendTicketNotification({
+      userId: userToAdd.id,
+      ticketId,
+      ticketTitle: ticket.title,
+      messagePreview: `Has sido añadido al ticket por ${session.user.name}`,
+      senderName: 'Sistema',
+      dashboardUrl
+    });
+  }
 
   revalidatePath(`/tickets/${ticketId}`);
 }
