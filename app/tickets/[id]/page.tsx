@@ -6,7 +6,7 @@ import { FaPaperPlane, FaLock, FaUnlock, FaUserPlus, FaUsers } from "react-icons
 import { redirect } from "next/navigation";
 import AttachmentPreview from "@/components/AttachmentPreview";
 import TicketMessageForm from "@/components/TicketMessageForm";
-import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
+import UserAvatar from "@/components/UserAvatar";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -23,17 +23,17 @@ export default async function TicketDetailPage(props: PageProps) {
   if (!session) redirect("/");
 
   const currentUserRole = session.user.role;
-  const currentUserId = parseInt(session.user.id);
+  const currentUserId = parseInt(session. user.id);
 
   // 1. BUSCAR TICKET + PARTICIPANTES (IMPORTANTE)
-  const ticket = await prisma.ticket.findUnique({
+  const ticket = await prisma. ticket.findUnique({
     where: { id: ticketId },
     include: {
       creator: true,
-      participants: true, // <--- Traemos a los añadidos
+      participants:  true,
       messages: {
         include: { author: true },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt:  'asc' }
       }
     }
   });
@@ -42,21 +42,21 @@ export default async function TicketDetailPage(props: PageProps) {
 
   // 2. COMPROBAR PERMISOS (Creador OR Admin OR Participante)
   const isParticipant = ticket.participants.some(p => p.id === currentUserId);
-  const canView = ticket.creatorId === currentUserId || currentUserRole === "ADMIN" || isParticipant;
+  const canView = ticket. creatorId === currentUserId || currentUserRole === "ADMIN" || isParticipant;
 
   if (!canView) {
     return <div className="p-8 text-red-500 font-bold">⛔ No tienes permiso para ver este ticket privado.</div>;
   }
 
   // Bindings
-  const sendMessageWithId = sendMessage.bind(null, ticket.id);
+  const sendMessageWithId = sendMessage.bind(null, ticket. id);
   const closeTicketWithReason = async (formData: FormData) => {
     "use server";
     const reason = formData.get('closeReason') as string;
     await updateTicketStatus(ticket.id, 'CLOSED', reason || 'Sin especificar');
   };
   const reopenTicket = updateTicketStatus.bind(null, ticket.id, 'OPEN');
-  const addUserWithId = addUserToTicket.bind(null, ticket.id); // <--- Binding para añadir usuario
+  const addUserWithId = addUserToTicket.bind(null, ticket. id);
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-100 dark:bg-gray-900">
@@ -68,19 +68,19 @@ export default async function TicketDetailPage(props: PageProps) {
         <div>
           <div className="flex items-center gap-3">
              <h1 className="text-xl font-bold text-gray-800 dark:text-white">
-               #{ticket.id} - {ticket.title}
+               #{ticket.id} - {ticket. title}
              </h1>
              <span className={`px-2 py-0.5 rounded text-xs font-bold border ${
                 ticket.status === 'OPEN' ? 'bg-green-100 text-green-700 border-green-200' : 
-                ticket.status === 'CLOSED' ? 'bg-gray-100 text-gray-600 border-gray-300' : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                ticket. status === 'CLOSED' ?  'bg-gray-100 text-gray-600 border-gray-300' : 'bg-yellow-100 text-yellow-700 border-yellow-200'
              }`}>
                 {ticket.status}
              </span>
           </div>
           
           <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1">
-            <span>Autor: <b className="text-gray-700 dark:text-gray-300">{ticket.creator.name}</b></span>
-            {ticket.participants.length > 0 && (
+            <span>Autor: <b className="text-gray-700 dark: text-gray-300">{ticket.creator.name}</b></span>
+            {ticket.participants. length > 0 && (
                 <>
                     <span>•</span>
                     <span className="flex items-center gap-1 text-indigo-500">
@@ -122,7 +122,7 @@ export default async function TicketDetailPage(props: PageProps) {
                       <input 
                         name="closeReason" 
                         placeholder="Motivo de cierre (opcional)" 
-                        className="bg-gray-100 dark:bg-gray-700 text-sm px-2 py-1 rounded outline-none w-48 text-gray-700 dark:text-gray-200"
+                        className="bg-gray-100 dark:bg-gray-700 text-sm px-2 py-1 rounded outline-none w-48 text-gray-700 dark: text-gray-200"
                       />
                       <button 
                         type="submit"
@@ -147,22 +147,22 @@ export default async function TicketDetailPage(props: PageProps) {
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {/* Descripción */}
         <div className="flex justify-center mb-6">
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-4 rounded-xl max-w-2xl text-center shadow-sm">
+            <div className="bg-blue-50 dark: bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-4 rounded-xl max-w-2xl text-center shadow-sm">
                 <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Descripción del Caso</p>
                 <p className="text-gray-700 dark:text-gray-300">{ticket.description}</p>
             </div>
         </div>
 
         {/* Mensajes */}
-        {ticket.messages.map((msg) => {
+        {ticket.messages. map((msg) => {
             const isMe = msg.authorId === currentUserId;
             const isAdmin = msg.author.role === 'ADMIN';
-            const isSystem = msg.content.startsWith("🔒 SISTEMA:");
+            const isSystem = msg.content. startsWith("🔒 SISTEMA:");
 
             if (isSystem) {
                 return (
                     <div key={msg.id} className="flex justify-center my-4">
-                        <span className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-3 py-1 rounded-full font-mono">
+                        <span className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark: text-gray-300 text-xs px-3 py-1 rounded-full font-mono">
                             {msg.content}
                         </span>
                     </div>
@@ -172,15 +172,15 @@ export default async function TicketDetailPage(props: PageProps) {
             return (
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`flex max-w-[85%] md:max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
+                        {/* ✅ CAMBIADO: Usar UserAvatar en lugar de <img> */}
                         <div className="flex-shrink-0 mt-1">
-                             <img 
-                               src={getDiscordAvatarUrl(msg.author.discordId, msg.author.avatar)} 
-                               alt={msg.author.name || 'Usuario'}
-                               className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600"
-                               onError={(e) => {
-                                 (e.target as HTMLImageElement).src = getDefaultDiscordAvatar(msg.author.discordId);
-                               }}
-                             />
+                          <UserAvatar 
+                            discordId={msg.author.discordId}
+                            avatar={msg.author.avatar}
+                            name={msg.author.name}
+                            size="md"
+                            className="border border-gray-300 dark: border-gray-600"
+                          />
                         </div>
                         <div className={`p-3 md:p-4 rounded-2xl shadow-sm text-sm ${
                             isMe 
@@ -194,15 +194,15 @@ export default async function TicketDetailPage(props: PageProps) {
                                     {msg.author.name} {isAdmin && !isMe && '🛡️ STAFF'}
                                 </span>
                                 <span className="text-[10px] opacity-60">
-                                    {msg.createdAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {msg.createdAt. toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                             </div>
                             <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                             
                             {/* Attachments */}
-                            {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                            {msg.attachments && Array.isArray(msg. attachments) && msg.attachments.length > 0 && (
                               <div className="mt-3 space-y-2">
-                                {(msg.attachments as string[]).map((url, index) => (
+                                {(msg. attachments as string[]).map((url, index) => (
                                   <AttachmentPreview key={index} url={url} />
                                 ))}
                               </div>
@@ -222,7 +222,7 @@ export default async function TicketDetailPage(props: PageProps) {
               </p>
           </div>
       ) : (
-          <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="p-4 bg-white dark: bg-gray-800 border-t border-gray-200 dark:border-gray-700 shrink-0">
             <TicketMessageForm ticketId={ticket.id} sendMessageAction={sendMessageWithId} />
           </div>
       )}

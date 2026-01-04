@@ -13,12 +13,12 @@ import {
   FaLifeRing,
   FaGavel,
   FaCalendarAlt, 
-  FaBroadcastTower, // <--- NUEVO ICONO PARA EL PANEL
+  FaBroadcastTower,
   FaCrown,       
   FaShieldAlt,
   FaHeadset
 } from "react-icons/fa";
-import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
+import UserAvatar from "./UserAvatar";
 
 export default function Sidebar() {
   const { data: session } = useSession();
@@ -34,12 +34,10 @@ export default function Sidebar() {
 
   // Menú General
   const menuItems = [
-    { name: "Inicio", path: "/", icon: <FaHome /> },
+    { name:  "Inicio", path: "/", icon: <FaHome /> },
     { name: "Soporte / Tickets", path: "/tickets", icon: <FaLifeRing /> },
-    { name: "Reportes", path: "/my-reports", icon: <FaGavel /> },
-    
-    // SECCIÓN DE EVENTOS
-    { name: "Eventos", path: "/events", icon: <FaCalendarAlt /> },
+    { name: "Reportes", path: "/my-reports", icon:  <FaGavel /> },
+    { name: "Eventos", path:  "/events", icon: <FaCalendarAlt /> },
   ];
 
   const getRoleBadge = () => {
@@ -57,13 +55,13 @@ export default function Sidebar() {
       
       {/* Encabezado */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
-        <img 
-          src={getDiscordAvatarUrl(session.user.discordId, session.user.image || null)} 
-          alt={session.user.name || 'Usuario'}
-          className="w-10 h-10 rounded-full border-2 border-indigo-500"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = getDefaultDiscordAvatar(session.user.discordId);
-          }}
+        {/* ✅ CAMBIADO: Usar UserAvatar */}
+        <UserAvatar 
+          discordId={session. user.discordId}
+          avatar={session.user.image || null}
+          name={session. user.name}
+          size="md"
+          className="border-2 border-indigo-500"
         />
         <div className="overflow-hidden">
           <h2 className="font-bold text-sm truncate text-gray-800 dark:text-white">{session.user.name}</h2>
@@ -76,7 +74,7 @@ export default function Sidebar() {
         <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider mb-2">General</p>
         {menuItems.map((item) => (
           <Link 
-            key={item.path} 
+            key={item. path} 
             href={item.path}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               pathname === item.path 
@@ -97,7 +95,7 @@ export default function Sidebar() {
             
             {isSuperAdmin && (
                 <>
-                    <Link href="/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/users' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
+                    <Link href="/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/users' ?  "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
                         <span className="text-lg"><FaUsers /></span>
                         <span className="text-sm font-medium">Gestión Usuarios</span>
                     </Link>
@@ -105,14 +103,14 @@ export default function Sidebar() {
                         <span className="text-lg"><FaMapMarkedAlt /></span>
                         <span className="text-sm font-medium">Mapa Global</span>
                     </Link>
-                     <Link href="/tools/discord-embed" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/tools/discord-embed' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
+                     <Link href="/tools/discord-embed" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/tools/discord-embed' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover: text-white"}`}>
                         <span className="text-lg"><FaDiscord /></span>
                         <span className="text-sm font-medium">Generador Embeds</span>
                     </Link>
                 </>
             )}
 
-            <Link href="/admin/reports" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/reports' ? "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
+            <Link href="/admin/reports" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${pathname === '/admin/reports' ?  "bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"}`}>
                 <span className="text-lg"><FaBug /></span>
                 <span className="text-sm font-medium">Panel de Tickets</span>
             </Link>

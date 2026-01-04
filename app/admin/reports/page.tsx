@@ -4,14 +4,14 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
 import { FaClipboardList, FaCheckCircle, FaGavel, FaLifeRing, FaHandPaper, FaUserShield, FaArrowRight } from "react-icons/fa";
 import { claimTicket, assignTicketManually } from "@/app/actions/ticketActions";
-import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
+import UserAvatar from "@/components/UserAvatar";
 
 export default async function AdminReportsPage() {
   // @ts-ignore
   const session = await getServerSession(authOptions);
   
   const allowedRoles = ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'];
-  if (!session || !allowedRoles.includes(session.user.role)) {
+  if (!session || !allowedRoles.includes(session.user. role)) {
     return <div className="p-10 text-center text-red-500 font-bold">Acceso Denegado</div>;
   }
 
@@ -30,10 +30,10 @@ export default async function AdminReportsPage() {
   }
 
   // 2. CARGAMOS TICKETS
-  const tickets = await prisma.ticket.findMany({
+  const tickets = await prisma. ticket.findMany({
     where: whereCondition,
     orderBy: { updatedAt: 'desc' },
-    include: { 
+    include:  { 
         creator: true, 
         reportedUser: true,
         assignedTo: true 
@@ -43,9 +43,9 @@ export default async function AdminReportsPage() {
   // 3. CARGAMOS LISTA DE STAFF (Solo si soy Admin, para el desplegable)
   let staffMembers: { id: number; name: string | null; role: string }[] = [];
   if (isSuperAdmin) {
-      staffMembers = await prisma.user.findMany({
+      staffMembers = await prisma. user.findMany({
           where: { role: { in: ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'] } },
-          select: { id: true, name: true, role: true } // Solo datos necesarios
+          select: { id: true, name: true, role: true }
       });
   }
 
@@ -57,7 +57,7 @@ export default async function AdminReportsPage() {
             <FaClipboardList className="text-indigo-600" />
             Panel de Tickets & Reportes
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-gray-500 dark: text-gray-400 mt-1">
             {isSuperAdmin 
                 ? "Modo Supervisor: Gestión total y asignación manual." 
                 : "Modo Staff: Atiende tickets libres (Máx. 5 simultáneos)."}
@@ -78,19 +78,19 @@ export default async function AdminReportsPage() {
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
                   <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Tipo</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Asunto</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 dark: text-gray-400 uppercase">Asunto</th>
                   <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Responsable</th>
                   <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {tickets.map((ticket) => {
-                  const isReport = ticket.type === 'USER_REPORT' || ticket.type === 'FACTION_REPORT';
+                  const isReport = ticket.type === 'USER_REPORT' || ticket. type === 'FACTION_REPORT';
                   const isMine = ticket.assignedToId === currentUserId;
-                  const isUnassigned = ticket.assignedToId === null;
+                  const isUnassigned = ticket. assignedToId === null;
                   
                   return (
-                    <tr key={ticket.id} className={`transition group ${isMine ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
+                    <tr key={ticket. id} className={`transition group ${isMine ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
                       {/* TIPO */}
                       <td className="p-4 align-top w-32">
                         <Link href={`/tickets/${ticket.id}`} className="block">
@@ -123,18 +123,16 @@ export default async function AdminReportsPage() {
                       <td className="p-4 align-top">
                         {ticket.assignedTo ? (
                             <div className="flex items-center gap-2">
-                                <img 
-                                  src={getDiscordAvatarUrl(ticket.assignedTo.discordId, ticket.assignedTo.avatar)}
-                                  alt={ticket.assignedTo.name || 'Staff'}
-                                  className="w-6 h-6 rounded-full border border-gray-600"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    const discordId = ticket.assignedTo?.discordId || '0';
-                                    target.src = getDefaultDiscordAvatar(discordId);
-                                  }}
+                                {/* ✅ CAMBIADO: Usar UserAvatar */}
+                                <UserAvatar 
+                                  discordId={ticket.assignedTo.discordId}
+                                  avatar={ticket.assignedTo.avatar}
+                                  name={ticket.assignedTo.name}
+                                  size="sm"
+                                  className="border border-gray-600"
                                 />
                                 <span className={`text-xs font-bold ${isMine ? 'text-indigo-600' : 'text-gray-700 dark:text-gray-300'}`}>
-                                    {isMine ? 'Tú (Reclamado)' : ticket.assignedTo.name}
+                                    {isMine ?  'Tú (Reclamado)' : ticket.assignedTo.name}
                                 </span>
                             </div>
                         ) : (
@@ -150,10 +148,10 @@ export default async function AdminReportsPage() {
                         <div className="flex flex-col gap-2 items-end">
                             
                             {/* BOTÓN RECLAMAR (Para todos si está libre) */}
-                            {isUnassigned && ticket.status !== 'CLOSED' && (
+                            {isUnassigned && ticket. status !== 'CLOSED' && (
                                 <form action={async () => {
                                     "use server";
-                                    await claimTicket(ticket.id);
+                                    await claimTicket(ticket. id);
                                 }}>
                                     <button className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1 transition">
                                         <FaHandPaper /> Reclamar
@@ -185,7 +183,7 @@ export default async function AdminReportsPage() {
                             )}
 
                             {/* Enlace al chat si ya está asignado */}
-                            {!isUnassigned && (
+                            {! isUnassigned && (
                                 <Link href={`/tickets/${ticket.id}`} className="text-indigo-600 hover:underline text-xs font-bold">
                                     Ver Chat &rarr;
                                 </Link>
