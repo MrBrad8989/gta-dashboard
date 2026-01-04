@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
 import { FaClipboardList, FaCheckCircle, FaGavel, FaLifeRing, FaHandPaper, FaUserShield, FaArrowRight } from "react-icons/fa";
 import { claimTicket, assignTicketManually } from "@/app/actions/ticketActions";
+import { getDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/avatarHelper";
 
 export default async function AdminReportsPage() {
   // @ts-ignore
@@ -40,7 +41,7 @@ export default async function AdminReportsPage() {
   });
 
   // 3. CARGAMOS LISTA DE STAFF (Solo si soy Admin, para el desplegable)
-  let staffMembers = [];
+  let staffMembers: { id: number; name: string | null; role: string }[] = [];
   if (isSuperAdmin) {
       staffMembers = await prisma.user.findMany({
           where: { role: { in: ['FOUNDER', 'ADMIN', 'TRIAL_ADMIN', 'SUPPORT'] } },
@@ -122,7 +123,16 @@ export default async function AdminReportsPage() {
                       <td className="p-4 align-top">
                         {ticket.assignedTo ? (
                             <div className="flex items-center gap-2">
-                                <img src={ticket.assignedTo.avatar || "/default-avatar.png"} className="w-6 h-6 rounded-full border border-gray-300" />
+                                <img 
+                                  src={getDiscordAvatarUrl(ticket.assignedTo.discordId, ticket.assignedTo.avatar)}
+                                  alt={ticket.assignedTo.name || 'Staff'}
+                                  className="w-6 h-6 rounded-full border border-gray-600"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    const discordId = ticket.assignedTo?.discordId || '0';
+                                    target.src = getDefaultDiscordAvatar(discordId);
+                                  }}
+                                />
                                 <span className={`text-xs font-bold ${isMine ? 'text-indigo-600' : 'text-gray-700 dark:text-gray-300'}`}>
                                     {isMine ? 'Tú (Reclamado)' : ticket.assignedTo.name}
                                 </span>
